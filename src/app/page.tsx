@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"
+
 import { AddMatchDialog } from "@/components/add-match-dialog"
 import { TopDuosPodium } from "@/components/stats/top-duos-podium"
 import { DuoRankingsTable } from "@/components/stats/duo-rankings-table"

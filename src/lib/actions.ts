@@ -1,7 +1,7 @@
 "use server"
 
 import { sql } from "@/lib/db"
-import { refresh } from "next/cache"
+import { revalidatePath } from "next/cache"
 
 type SaveMatchInput = {
   teamA: { attacker: string; defender: string }
@@ -49,5 +49,5 @@ export async function saveMatch(input: SaveMatchInput): Promise<void> {
     (${matchId}, ${teamBDefenderId}, 'B', 'defense')
   `
 
-  refresh()
+  revalidatePath("/")
 }
