@@ -113,24 +113,20 @@ export function AddMatchDialog({ players }: { players: Player[] }) {
             {/* Équipe A */}
             <div className="rounded-2xl bg-blue-50 border border-blue-100 p-4 space-y-3 ">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="order-2 sm:order-1">
-                  <PlayerField
-                    icon={<PersonStandingIcon className="size-3.5" />}
-                    label="Attaquant"
-                    value={form.teamA.attacker}
-                    onChange={(v) => setForm((f) => ({ ...f, teamA: { ...f.teamA, attacker: v } }))}
-                    players={players}
-                  />
-                </div>
-                <div className="order-1 sm:order-2">
-                  <PlayerField
-                    icon={<ShieldIcon className="size-3.5" />}
-                    label="Défenseur"
-                    value={form.teamA.defender}
-                    onChange={(v) => setForm((f) => ({ ...f, teamA: { ...f.teamA, defender: v } }))}
-                    players={players}
-                  />
-                </div>
+                <PlayerField
+                  icon={<ShieldIcon className="size-3.5" />}
+                  label="Défenseur"
+                  value={form.teamA.defender}
+                  onChange={(v) => setForm((f) => ({ ...f, teamA: { ...f.teamA, defender: v } }))}
+                  players={players}
+                />
+                <PlayerField
+                  icon={<PersonStandingIcon className="size-3.5" />}
+                  label="Attaquant"
+                  value={form.teamA.attacker}
+                  onChange={(v) => setForm((f) => ({ ...f, teamA: { ...f.teamA, attacker: v } }))}
+                  players={players}
+                />
               </div>
             </div>
 
