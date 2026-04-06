@@ -1,6 +1,3 @@
-"use client"
-
-import { DUO_STATS } from "@/lib/dummy-data"
 import type { DuoStats } from "@/lib/types"
 
 function getInitials(first: string, last: string) {
@@ -100,11 +97,72 @@ function RunnerUpCard({ duo, rank }: { duo: DuoStats; rank: 2 | 3 }) {
   )
 }
 
-export function TopDuosPodium() {
-  const top3 = DUO_STATS.slice(0, 3)
+function SkeletonChampionCard() {
+  return (
+    <div className="relative flex-1 rounded-2xl bg-primary px-8 py-8 flex flex-col items-center justify-center gap-10 shadow-2xl min-h-64 overflow-hidden">
+      <span className="absolute right-6 top-4 text-[7rem] font-black text-white/10 leading-none select-none">#1</span>
+      <div className="flex flex-col items-center gap-4 z-10">
+        <div className="flex shrink-0">
+          <div className="w-16 h-16 rounded-full bg-white/20 border-2 border-white/40 -ml-0" />
+          <div className="w-16 h-16 rounded-full bg-white/20 border-2 border-white/40 -ml-4" />
+        </div>
+        <div className="flex flex-col items-center gap-2">
+          <div className="h-5 w-36 rounded bg-white/20 animate-pulse" />
+          <div className="h-5 w-28 rounded bg-white/20 animate-pulse" />
+        </div>
+      </div>
+      <div className="flex gap-6 z-10">
+        {[1, 2, 3].map((k) => (
+          <div key={k} className="text-center flex flex-col items-center gap-1">
+            <div className="h-3 w-14 rounded bg-white/20 animate-pulse" />
+            <div className="h-8 w-10 rounded bg-white/20 animate-pulse" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SkeletonRunnerUpCard({ rank }: { rank: 2 | 3 }) {
+  const rankColor = rank === 2 ? "text-primary" : "text-orange-400"
+  return (
+    <div className="flex-1 rounded-2xl bg-card border border-border px-8 py-8 flex flex-col items-center justify-center gap-10 shadow-sm relative overflow-hidden min-h-64">
+      <span className={`absolute right-6 top-4 text-[7rem] font-black opacity-10 leading-none select-none ${rankColor}`}>#{rank}</span>
+      <div className="flex flex-col items-center gap-4 z-10">
+        <div className="flex shrink-0">
+          <div className="w-16 h-16 rounded-full bg-muted border-2 border-border" />
+          <div className="w-16 h-16 rounded-full bg-muted border-2 border-border -ml-4" />
+        </div>
+        <div className="flex flex-col items-center gap-2">
+          <div className="h-5 w-36 rounded bg-muted animate-pulse" />
+          <div className="h-5 w-28 rounded bg-muted animate-pulse" />
+        </div>
+      </div>
+      <div className="flex gap-6 z-10">
+        {[1, 2, 3].map((k) => (
+          <div key={k} className="text-center flex flex-col items-center gap-1">
+            <div className="h-3 w-14 rounded bg-muted animate-pulse" />
+            <div className="h-8 w-10 rounded bg-muted animate-pulse" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export function TopDuosPodium({ duoStats }: { duoStats: DuoStats[] }) {
+  const top3 = duoStats.slice(0, 3)
   const [first, second, third] = top3
 
-  if (!first) return null
+  if (!first) return (
+    <section>
+      <div className="flex flex-col sm:flex-row items-stretch gap-4">
+        <div className="order-2 sm:order-1 flex-1 flex flex-col"><SkeletonRunnerUpCard rank={2} /></div>
+        <div className="order-1 sm:order-2 flex-1 flex flex-col"><SkeletonChampionCard /></div>
+        <div className="order-3 sm:order-3 flex-1 flex flex-col"><SkeletonRunnerUpCard rank={3} /></div>
+      </div>
+    </section>
+  )
 
   return (
     <section>

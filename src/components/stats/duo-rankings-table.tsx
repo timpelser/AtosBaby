@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { DUO_STATS } from "@/lib/dummy-data"
 import type { DuoStats } from "@/lib/types"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
@@ -56,9 +55,9 @@ function DuoRow({ duo, rank }: { duo: DuoStats; rank: number }) {
 
 const PAGE_SIZE = 7
 
-export function DuoRankingsTable() {
+export function DuoRankingsTable({ duoStats }: { duoStats: DuoStats[] }) {
   const [showAll, setShowAll] = useState(false)
-  const rows = DUO_STATS.slice(3)
+  const rows = duoStats.slice(3)
   const visible = showAll ? rows : rows.slice(0, PAGE_SIZE)
 
   return (
@@ -75,9 +74,29 @@ export function DuoRankingsTable() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {visible.map((duo, i) => (
-            <DuoRow key={`${duo.player_a.id}-${duo.player_b.id}`} duo={duo} rank={i + 4} />
-          ))}
+          {visible.length === 0
+            ? Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i} className="h-16">
+                  <TableCell className="pl-6 w-20"><div className="h-4 w-6 rounded bg-muted animate-pulse" /></TableCell>
+                  <TableCell className="w-1/2">
+                    <div className="flex items-center gap-3">
+                      <div className="flex shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-muted animate-pulse z-10 ring-2 ring-background" />
+                        <div className="w-9 h-9 rounded-full bg-muted animate-pulse -ml-2 ring-2 ring-background" />
+                      </div>
+                      <div className="h-4 w-40 rounded bg-muted animate-pulse" />
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center"><div className="h-4 w-6 rounded bg-muted animate-pulse mx-auto" /></TableCell>
+                  <TableCell className="text-center"><div className="h-4 w-6 rounded bg-muted animate-pulse mx-auto" /></TableCell>
+                  <TableCell className="text-center"><div className="h-4 w-6 rounded bg-muted animate-pulse mx-auto" /></TableCell>
+                  <TableCell className="text-center"><div className="h-6 w-14 rounded-full bg-muted animate-pulse mx-auto" /></TableCell>
+                </TableRow>
+              ))
+            : visible.map((duo, i) => (
+                <DuoRow key={`${duo.player_a.id}-${duo.player_b.id}`} duo={duo} rank={i + 4} />
+              ))
+          }
         </TableBody>
       </Table>
 

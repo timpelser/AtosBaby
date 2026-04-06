@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { DUO_STATS } from "@/lib/dummy-data"
 import type { DuoStats } from "@/lib/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
@@ -51,11 +50,11 @@ function DuoStatsDialog({ duo, rank, open, onClose }: { duo: DuoStats; rank: num
 
 const PAGE_SIZE = 7
 
-export function DuoRankingsTableMobile() {
+export function DuoRankingsTableMobile({ duoStats }: { duoStats: DuoStats[] }) {
   const [showAll, setShowAll] = useState(false)
   const [selected, setSelected] = useState<{ duo: DuoStats; rank: number } | null>(null)
 
-  const rows = DUO_STATS.slice(3)
+  const rows = duoStats.slice(3)
   const visible = showAll ? rows : rows.slice(0, PAGE_SIZE)
 
   return (
@@ -68,6 +67,12 @@ export function DuoRankingsTableMobile() {
         </div>
 
         {/* Rows */}
+        {visible.length === 0 && Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className={`flex items-center px-4 h-14 ${i < 4 ? "border-b border-border" : ""}`}>
+            <div className="w-12 h-4 rounded bg-muted animate-pulse mr-2" />
+            <div className="flex-1 h-4 rounded bg-muted animate-pulse" />
+          </div>
+        ))}
         {visible.map((duo, i) => {
           const rank = i + 4
           return (

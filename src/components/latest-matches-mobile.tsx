@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { MATCHES } from "@/lib/dummy-data"
 import type { Match } from "@/lib/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
@@ -73,10 +72,10 @@ function MatchDialog({ match, open, onClose }: { match: Match; open: boolean; on
 const headCls = "text-xs tracking-widest uppercase text-muted-foreground font-semibold"
 const PAGE_SIZE = 7
 
-export function LatestMatchesMobile() {
+export function LatestMatchesMobile({ matches }: { matches: Match[] }) {
   const [selected, setSelected] = useState<Match | null>(null)
   const [showAll, setShowAll] = useState(false)
-  const visible = showAll ? MATCHES : MATCHES.slice(0, PAGE_SIZE)
+  const visible = showAll ? matches : matches.slice(0, PAGE_SIZE)
 
   return (
     <>
@@ -87,6 +86,25 @@ export function LatestMatchesMobile() {
           <span className={`w-20 text-center ${headCls}`}>Score</span>
           <span className={`flex-1 text-right ${headCls}`}>Équipe B</span>
         </div>
+
+        {/* Skeleton rows */}
+        {visible.length === 0 && Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className={`flex items-center py-4 px-4 ${i < 4 ? "border-b border-border" : ""}`}>
+            <div className="flex-1 flex flex-col gap-1.5">
+              <div className="h-4 w-24 rounded bg-muted animate-pulse" />
+              <div className="h-4 w-20 rounded bg-muted animate-pulse" />
+            </div>
+            <div className="w-20 flex items-center justify-center gap-1.5 shrink-0">
+              <div className="w-8 h-8 rounded-md bg-muted animate-pulse" />
+              <span className="text-muted-foreground text-xs">-</span>
+              <div className="w-8 h-8 rounded-md bg-muted animate-pulse" />
+            </div>
+            <div className="flex-1 flex flex-col items-end gap-1.5">
+              <div className="h-4 w-24 rounded bg-muted animate-pulse" />
+              <div className="h-4 w-20 rounded bg-muted animate-pulse" />
+            </div>
+          </div>
+        ))}
 
         {/* Rows */}
         {visible.map((match, i) => {
@@ -129,7 +147,7 @@ export function LatestMatchesMobile() {
           )
         })}
 
-        {MATCHES.length > PAGE_SIZE && (
+        {matches.length > PAGE_SIZE && (
           <button
             onClick={() => setShowAll(v => !v)}
             className="w-full border-t border-border py-4 flex items-center justify-center gap-2 text-sm font-semibold tracking-widest uppercase text-primary hover:bg-muted/50 transition-colors"

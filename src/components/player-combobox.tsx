@@ -19,6 +19,15 @@ import {
 } from "@/components/ui/popover"
 import type { Player } from "@/lib/types"
 
+const EMAIL_REGEX = /^[a-z]+\.[a-z]+@atos\.net$/i
+
+function nameFromEmail(email: string): string {
+  const [prefix] = email.split("@")
+  const [first, last] = prefix.split(".")
+  if (!first || !last) return email
+  return `${first.charAt(0).toUpperCase()}${first.slice(1)} ${last.charAt(0).toUpperCase()}${last.slice(1)}`
+}
+
 type Props = {
   players: Player[]
   value: string
@@ -28,28 +37,89 @@ type Props = {
 
 export function PlayerCombobox({ players, value, onChange, placeholder = "Sélectionner un joueur..." }: Props) {
   const [open, setOpen] = useState(false)
+  const [inputValue, setInputValue] = useState("")
+  const [error, setError] = useState("")
 
   const selected = players.find((p) => p.email === value)
+  const displayValue = selected
+    ? `${selected.first_name} ${selected.last_name}`
+    : value
+    ? nameFromEmail(value)
+    : null
+
+  function commitEmail(email: string) {
+    const normalized = email.toLowerCase().trim()
+    if (EMAIL_REGEX.test(normalized)) {
+      setError("")
+      setInputValue("")
+      onChange(normalized)
+      setOpen(false)
+    } else if (normalized) {
+      setError("Format invalide — ex: prenom.nom@atos.net")
+    }
+  }
+
+  function handleOpenChange(next: boolean) {
+    if (!next) {
+      // On close, try to commit whatever is typed
+      commitEmail(inputValue)
+      if (!EMAIL_REGEX.test(inputValue.toLowerCase().trim()) && inputValue) {
+        // Keep open to show error
+        setOpen(true)
+        return
+      }
+      setInputValue("")
+      setError("")
+    }
+    setOpen(next)
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault()
+      commitEmail(inputValue)
+    }
+    if (e.key === "Escape") {
+      setInputValue("")
+      setError("")
+      setOpen(false)
+    }
+  }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger
         render={
           <Button
             variant="outline"
             aria-expanded={open}
-            className={cn("w-full h-9 justify-between font-normal", !selected && "text-muted-foreground")}
+            className={cn("w-full h-9 justify-between font-normal", !displayValue && "text-muted-foreground")}
           />
         }
       >
-        {selected ? `${selected.first_name} ${selected.last_name}` : placeholder}
+        {displayValue ?? placeholder}
         <ChevronsUpDownIcon className="ml-2 opacity-50" />
       </PopoverTrigger>
       <PopoverContent className="w-72 p-0">
         <Command>
-          <CommandInput placeholder="Rechercher..." />
+          <CommandInput
+            placeholder="Nom ou email..."
+            value={inputValue}
+            onValueChange={(v) => {
+              setInputValue(v)
+              setError("")
+            }}
+            onKeyDown={handleKeyDown}
+          />
+          {error && (
+            <p className="px-3 py-1.5 text-xs text-red-500">{error}</p>
+          )}
           <CommandList>
-            <CommandEmpty>Aucun joueur trouvé.</CommandEmpty>
+            <CommandEmpty>
+              {inputValue
+                ? "Appuyez sur Entrée pour ajouter cet email."
+                : "Aucun joueur trouvé."}
+            </CommandEmpty>
             <CommandGroup>
               {players.map((player) => (
                 <CommandItem
@@ -58,6 +128,8 @@ export function PlayerCombobox({ players, value, onChange, placeholder = "Sélec
                   data-checked={value === player.email}
                   onSelect={() => {
                     onChange(player.email)
+                    setInputValue("")
+                    setError("")
                     setOpen(false)
                   }}
                 >

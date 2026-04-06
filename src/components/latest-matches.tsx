@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { MATCHES } from "@/lib/dummy-data"
 import type { Match } from "@/lib/types"
 
 function formatDate(iso: string) {
@@ -55,9 +54,9 @@ function Score({ match }: { match: Match }) {
 const headCls = "text-xs tracking-widest uppercase text-muted-foreground font-semibold"
 const PAGE_SIZE = 7
 
-export function LatestMatches() {
+export function LatestMatches({ matches }: { matches: Match[] }) {
   const [showAll, setShowAll] = useState(false)
-  const visible = showAll ? MATCHES : MATCHES.slice(0, PAGE_SIZE)
+  const visible = showAll ? matches : matches.slice(0, PAGE_SIZE)
 
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -82,9 +81,40 @@ export function LatestMatches() {
         <div className="w-44 shrink-0" />
       </div>
 
+      {/* Skeleton rows */}
+      {visible.length === 0 && Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className={`flex items-center py-5 px-6 ${i < 4 ? "border-b border-border" : ""}`}>
+          <div className="w-44 shrink-0"><div className="h-4 w-24 rounded bg-muted animate-pulse" /></div>
+          <div className="flex-1 flex justify-center">
+            <div className="w-64 flex flex-col gap-2">
+              <div className="h-4 w-36 rounded bg-muted animate-pulse" />
+              <div className="h-3 w-20 rounded bg-muted animate-pulse" />
+              <div className="h-4 w-32 rounded bg-muted animate-pulse" />
+              <div className="h-3 w-20 rounded bg-muted animate-pulse" />
+            </div>
+          </div>
+          <div className="w-40 shrink-0 flex justify-center">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-muted animate-pulse" />
+              <span className="text-muted-foreground text-sm">-</span>
+              <div className="w-10 h-10 rounded-lg bg-muted animate-pulse" />
+            </div>
+          </div>
+          <div className="flex-1 flex justify-center">
+            <div className="w-64 flex flex-col gap-2">
+              <div className="h-4 w-36 rounded bg-muted animate-pulse" />
+              <div className="h-3 w-20 rounded bg-muted animate-pulse" />
+              <div className="h-4 w-32 rounded bg-muted animate-pulse" />
+              <div className="h-3 w-20 rounded bg-muted animate-pulse" />
+            </div>
+          </div>
+          <div className="w-44 shrink-0" />
+        </div>
+      ))}
+
       {/* Rows */}
       {visible.map((match, i) => (
-        <div key={match.id} className={`flex items-center py-5 px-6 hover:bg-muted/30 transition-colors ${i < visible.length - 1 || !MATCHES.length ? "border-b border-border" : ""}`}>
+        <div key={match.id} className={`flex items-center py-5 px-6 hover:bg-muted/30 transition-colors ${i < visible.length - 1 || !matches.length ? "border-b border-border" : ""}`}>
           <div className="w-44 shrink-0 text-sm text-muted-foreground">
             {formatDate(match.played_at)}
           </div>
@@ -105,7 +135,7 @@ export function LatestMatches() {
         </div>
       ))}
 
-      {MATCHES.length > PAGE_SIZE && (
+      {matches.length > PAGE_SIZE && (
         <button
           onClick={() => setShowAll(v => !v)}
           className="w-full border-t border-border py-4 flex items-center justify-center gap-2 text-sm font-semibold tracking-widest uppercase text-primary hover:bg-muted/50 transition-colors"

@@ -12,7 +12,8 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { PlayerCombobox } from "@/components/player-combobox"
-import { PLAYERS } from "@/lib/dummy-data"
+import { saveMatch } from "@/lib/actions"
+import type { Player } from "@/lib/types"
 
 type TeamState = {
   attacker: string
@@ -38,11 +39,13 @@ function PlayerField({
   label,
   value,
   onChange,
+  players,
 }: {
   icon: React.ReactNode
   label: string
   value: string
   onChange: (v: string) => void
+  players: Player[]
 }) {
   return (
     <div className="space-y-1.5">
@@ -51,16 +54,16 @@ function PlayerField({
         {label}
       </Label>
       <PlayerCombobox
-        players={PLAYERS}
+        players={players}
         value={value}
         onChange={onChange}
-        placeholder="nom.prenom@atos.net"
+        placeholder="prenom.nom@atos.net"
       />
     </div>
   )
 }
 
-export function AddMatchDialog() {
+export function AddMatchDialog({ players }: { players: Player[] }) {
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
 
@@ -69,10 +72,10 @@ export function AddMatchDialog() {
     if (!next) setForm(EMPTY_FORM)
   }
 
-  function handleSubmit(e: { preventDefault(): void }) {
+  async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault()
     if (scoreInvalid || playersInvalid) return
-    // Backend integration will be added later
+    await saveMatch({ teamA: form.teamA, teamB: form.teamB, scoreA: form.scoreA, scoreB: form.scoreB })
     setOpen(false)
     setForm(EMPTY_FORM)
   }
@@ -116,6 +119,7 @@ export function AddMatchDialog() {
                     label="Attaquant"
                     value={form.teamA.attacker}
                     onChange={(v) => setForm((f) => ({ ...f, teamA: { ...f.teamA, attacker: v } }))}
+                    players={players}
                   />
                 </div>
                 <div className="order-1 sm:order-2">
@@ -124,6 +128,7 @@ export function AddMatchDialog() {
                     label="Défenseur"
                     value={form.teamA.defender}
                     onChange={(v) => setForm((f) => ({ ...f, teamA: { ...f.teamA, defender: v } }))}
+                    players={players}
                   />
                 </div>
               </div>
@@ -204,12 +209,14 @@ export function AddMatchDialog() {
                   label="Défenseur"
                   value={form.teamB.defender}
                   onChange={(v) => setForm((f) => ({ ...f, teamB: { ...f.teamB, defender: v } }))}
+                  players={players}
                 />
                 <PlayerField
                   icon={<PersonStandingIcon className="size-3.5" />}
                   label="Attaquant"
                   value={form.teamB.attacker}
                   onChange={(v) => setForm((f) => ({ ...f, teamB: { ...f.teamB, attacker: v } }))}
+                  players={players}
                 />
               </div>
             </div>
