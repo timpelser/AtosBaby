@@ -56,7 +56,7 @@ export async function getDuoStats(): Promise<DuoStats[]> {
       player_b_id, player_b_email, player_b_first_name, player_b_last_name,
       matches_played, wins, losses, win_rate
     FROM duo_stats
-    ORDER BY win_rate DESC, matches_played DESC
+    ORDER BY wins DESC, win_rate DESC
   `
 
   return rows.map((r) => ({
@@ -74,7 +74,7 @@ export async function getAttackerStats(): Promise<PositionStats[]> {
     SELECT id, email, first_name, last_name, wins, losses, win_rate
     FROM position_stats
     WHERE position = 'attack'
-    ORDER BY win_rate DESC, wins DESC
+    ORDER BY wins DESC, win_rate DESC
   `
   return rows.map((r) => ({
     player: { id: r.id, email: r.email, first_name: r.first_name, last_name: r.last_name },
@@ -89,7 +89,7 @@ export async function getDefenderStats(): Promise<PositionStats[]> {
     SELECT id, email, first_name, last_name, wins, losses, win_rate
     FROM position_stats
     WHERE position = 'defense'
-    ORDER BY win_rate DESC, wins DESC
+    ORDER BY wins DESC, win_rate DESC
   `
   return rows.map((r) => ({
     player: { id: r.id, email: r.email, first_name: r.first_name, last_name: r.last_name },
