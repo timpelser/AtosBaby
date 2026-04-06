@@ -38,7 +38,7 @@ export function PlayerCombobox({ players, value, onChange, placeholder = "Sélec
           <Button
             variant="outline"
             aria-expanded={open}
-            className={cn("w-full justify-between font-normal", !selected && "text-muted-foreground")}
+            className={cn("w-full h-9 justify-between font-normal", !selected && "text-muted-foreground")}
           />
         }
       >

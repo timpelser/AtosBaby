@@ -1,18 +1,15 @@
 "use client"
 
 import { useState } from "react"
-import { PlusIcon } from "lucide-react"
+import { PlusIcon, ShieldIcon, PersonStandingIcon, XIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
+  DialogClose,
   DialogContent,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogClose,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PlayerCombobox } from "@/components/player-combobox"
 import { PLAYERS } from "@/lib/dummy-data"
@@ -25,49 +22,40 @@ type TeamState = {
 type FormState = {
   teamA: TeamState
   teamB: TeamState
-  scoreA: string
-  scoreB: string
+  scoreA: number
+  scoreB: number
 }
 
 const EMPTY_FORM: FormState = {
   teamA: { attacker: "", defender: "" },
   teamB: { attacker: "", defender: "" },
-  scoreA: "",
-  scoreB: "",
+  scoreA: 0,
+  scoreB: 0,
 }
 
-function TeamSection({
+function PlayerField({
+  icon,
   label,
-  teamColor,
-  state,
+  value,
   onChange,
 }: {
+  icon: React.ReactNode
   label: string
-  teamColor: string
-  state: TeamState
-  onChange: (next: TeamState) => void
+  value: string
+  onChange: (v: string) => void
 }) {
   return (
-    <div className={`rounded-lg border p-4 space-y-3 ${teamColor}`}>
-      <h3 className="font-semibold text-sm">{label}</h3>
-      <div className="space-y-2">
-        <Label className="text-xs text-muted-foreground">Attaquant</Label>
-        <PlayerCombobox
-          players={PLAYERS}
-          value={state.attacker}
-          onChange={(email) => onChange({ ...state, attacker: email })}
-          placeholder="Choisir un attaquant..."
-        />
-      </div>
-      <div className="space-y-2">
-        <Label className="text-xs text-muted-foreground">Défenseur</Label>
-        <PlayerCombobox
-          players={PLAYERS}
-          value={state.defender}
-          onChange={(email) => onChange({ ...state, defender: email })}
-          placeholder="Choisir un défenseur..."
-        />
-      </div>
+    <div className="space-y-1.5">
+      <Label className="flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase text-muted-foreground">
+        {icon}
+        {label}
+      </Label>
+      <PlayerCombobox
+        players={PLAYERS}
+        value={value}
+        onChange={onChange}
+        placeholder="nom.prenom@atos.net"
+      />
     </div>
   )
 }
@@ -81,11 +69,20 @@ export function AddMatchDialog() {
     if (!next) setForm(EMPTY_FORM)
   }
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault()
+    if (scoreInvalid || playersInvalid) return
     // Backend integration will be added later
     setOpen(false)
     setForm(EMPTY_FORM)
+  }
+
+  const allPlayers = [form.teamA.attacker, form.teamA.defender, form.teamB.attacker, form.teamB.defender]
+  const playersInvalid = allPlayers.some((p) => !p) || new Set(allPlayers).size < 4
+  const scoreInvalid = (form.scoreA !== 10 && form.scoreB !== 10) || (form.scoreA === 10 && form.scoreB === 10)
+
+  function clampScore(val: number) {
+    return Math.max(0, Math.min(10, val))
   }
 
   return (
@@ -95,62 +92,139 @@ export function AddMatchDialog() {
         Ajouter un match
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Ajouter un match</DialogTitle>
-        </DialogHeader>
+      <DialogContent showCloseButton={false} className="sm:max-w-lg p-0 overflow-hidden gap-0 border border-border">
+        {/* Header */}
+        <div className="relative px-6 pt-4 text-center">
+          <DialogTitle className="font-bold text-lg tracking-wide text-blue-600">
+            Nouveau Match
+          </DialogTitle>
+          <DialogClose
+            render={<button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-gray-100 transition-colors" />}
+          >
+            <XIcon className="size-4" />
+          </DialogClose>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Teams */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <TeamSection
-              label="Équipe A"
-              teamColor="bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800"
-              state={form.teamA}
-              onChange={(teamA) => setForm((f) => ({ ...f, teamA }))}
-            />
-            <TeamSection
-              label="Équipe B"
-              teamColor="bg-orange-50 border-orange-200 dark:bg-orange-950/30 dark:border-orange-800"
-              state={form.teamB}
-              onChange={(teamB) => setForm((f) => ({ ...f, teamB }))}
-            />
-          </div>
+        <form onSubmit={handleSubmit}>
+          <div className="p-4 space-y-3">
+            {/* Équipe A */}
+            <div className="rounded-2xl bg-blue-50 border border-blue-100 p-4 space-y-3 ">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="order-2 sm:order-1">
+                  <PlayerField
+                    icon={<PersonStandingIcon className="size-3.5" />}
+                    label="Attaquant"
+                    value={form.teamA.attacker}
+                    onChange={(v) => setForm((f) => ({ ...f, teamA: { ...f.teamA, attacker: v } }))}
+                  />
+                </div>
+                <div className="order-1 sm:order-2">
+                  <PlayerField
+                    icon={<ShieldIcon className="size-3.5" />}
+                    label="Défenseur"
+                    value={form.teamA.defender}
+                    onChange={(v) => setForm((f) => ({ ...f, teamA: { ...f.teamA, defender: v } }))}
+                  />
+                </div>
+              </div>
+            </div>
 
-          {/* Score */}
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Score</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                min={0}
-                max={10}
-                placeholder="0"
-                value={form.scoreA}
-                onChange={(e) => setForm((f) => ({ ...f, scoreA: e.target.value }))}
-                className="text-center text-lg font-semibold w-20"
-              />
-              <span className="text-muted-foreground font-medium text-lg">—</span>
-              <Input
-                type="number"
-                min={0}
-                max={10}
-                placeholder="0"
-                value={form.scoreB}
-                onChange={(e) => setForm((f) => ({ ...f, scoreB: e.target.value }))}
-                className="text-center text-lg font-semibold w-20"
-              />
+            {/* Score */}
+            <div className="rounded-2xl bg-gray-50 border border-gray-100 p-5">
+              <div className="flex items-center justify-center gap-8">
+                {/* Score A */}
+                <div className="flex flex-col items-center gap-0">
+                  <div className="flex w-24 gap-px">
+                    <button
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, scoreA: clampScore(f.scoreA + 1) }))}
+                      className="flex flex-1 h-9 items-center justify-center rounded-tl-lg bg-gray-200 hover:bg-gray-300 text-gray-600 text-lg font-medium transition-colors"
+                    >
+                      +
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, scoreA: 10 }))}
+                      className="flex flex-1 h-9 items-center justify-center rounded-tr-lg bg-blue-100 hover:bg-blue-200 text-blue-600 text-xs font-bold transition-colors"
+                    >
+                      +10
+                    </button>
+                  </div>
+                  <span className="text-6xl font-extrabold text-blue-600 leading-none w-24 text-center py-2">
+                    {form.scoreA}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, scoreA: clampScore(f.scoreA - 1) }))}
+                    className="flex w-24 h-9 items-center justify-center rounded-bl-lg rounded-br-lg bg-gray-200 hover:bg-gray-300 text-gray-600 text-lg font-medium transition-colors"
+                  >
+                    −
+                  </button>
+                </div>
+
+                <span className="text-xl font-semibold text-gray-300 select-none">vs</span>
+
+                {/* Score B */}
+                <div className="flex flex-col items-center gap-0">
+                  <div className="flex w-24 gap-px">
+                    <button
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, scoreB: clampScore(f.scoreB + 1) }))}
+                      className="flex flex-1 h-9 items-center justify-center rounded-tl-lg bg-gray-200 hover:bg-gray-300 text-gray-600 text-lg font-medium transition-colors"
+                    >
+                      +
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, scoreB: 10 }))}
+                      className="flex flex-1 h-9 items-center justify-center rounded-tr-lg bg-orange-100 hover:bg-orange-200 text-orange-700 text-xs font-bold transition-colors"
+                    >
+                      +10
+                    </button>
+                  </div>
+                  <span className="text-6xl font-extrabold text-orange-700 leading-none w-24 text-center py-2">
+                    {form.scoreB}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, scoreB: clampScore(f.scoreB - 1) }))}
+                    className="flex w-24 h-9 items-center justify-center rounded-bl-lg rounded-br-lg bg-gray-200 hover:bg-gray-300 text-gray-600 text-lg font-medium transition-colors"
+                  >
+                    −
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Équipe B */}
+            <div className="rounded-2xl bg-orange-50 border border-orange-100 p-4 space-y-3 ">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <PlayerField
+                  icon={<ShieldIcon className="size-3.5" />}
+                  label="Défenseur"
+                  value={form.teamB.defender}
+                  onChange={(v) => setForm((f) => ({ ...f, teamB: { ...f.teamB, defender: v } }))}
+                />
+                <PlayerField
+                  icon={<PersonStandingIcon className="size-3.5" />}
+                  label="Attaquant"
+                  value={form.teamB.attacker}
+                  onChange={(v) => setForm((f) => ({ ...f, teamB: { ...f.teamB, attacker: v } }))}
+                />
+              </div>
             </div>
           </div>
 
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" type="button" />}>
-              Annuler
-            </DialogClose>
-            <Button type="submit">
-              Enregistrer
+          {/* Submit */}
+          <div className="px-4 pb-4">
+            <Button
+              type="submit"
+              disabled={scoreInvalid || playersInvalid}
+              className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-bold tracking-widest text-sm rounded-xl disabled:opacity-50"
+            >
+              ENREGISTRER LE MATCH
             </Button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
