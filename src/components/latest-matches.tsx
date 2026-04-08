@@ -2,6 +2,11 @@
 
 import { useState } from "react"
 import type { Match } from "@/lib/types"
+import { useAdmin } from "@/components/admin-context"
+import { deleteMatch } from "@/lib/actions"
+import { Trash2 } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
@@ -51,99 +56,156 @@ function Score({ match }: { match: Match }) {
   )
 }
 
+function DeleteMatchDialog({ match, onClose }: { match: Match; onClose: () => void }) {
+  const { adminPassword } = useAdmin()
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState(false)
+
+  async function handleConfirm() {
+    setPending(true)
+    setError(false)
+    try {
+      await deleteMatch(match.id, adminPassword)
+      onClose()
+    } catch {
+      setError(true)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>Supprimer ce match ?</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground py-2">
+          Êtes-vous sûr de vouloir supprimer ce match ? Cette action est irréversible.
+        </p>
+        {error && <p className="text-xs text-destructive">Une erreur est survenue. Vérifiez vos droits admin.</p>}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={pending}>Annuler</Button>
+          <Button variant="destructive" onClick={handleConfirm} disabled={pending}>
+            {pending ? "Suppression…" : "Supprimer"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 const headCls = "text-xs tracking-widest uppercase text-muted-foreground font-semibold"
 const PAGE_SIZE = 7
 
 export function LatestMatches({ matches }: { matches: Match[] }) {
+  const { isAdmin } = useAdmin()
   const [showAll, setShowAll] = useState(false)
+  const [matchToDelete, setMatchToDelete] = useState<Match | null>(null)
   const visible = showAll ? matches : matches.slice(0, PAGE_SIZE)
 
   return (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center border-b border-border py-4 px-6">
-        <div className="w-44 shrink-0">
-          <span className={headCls}>Date</span>
-        </div>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="w-64">
-            <span className={headCls}>Équipe A (Attaque / Défense)</span>
+    <>
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center border-b border-border py-4 px-6">
+          <div className="w-44 shrink-0">
+            <span className={headCls}>Date</span>
           </div>
-        </div>
-        <div className="w-40 shrink-0 flex justify-center">
-          <span className={headCls}>Score</span>
-        </div>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="w-64">
-            <span className={headCls}>Équipe B (Attaque / Défense)</span>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="w-64">
+              <span className={headCls}>Équipe A (Attaque / Défense)</span>
+            </div>
           </div>
+          <div className="w-40 shrink-0 flex justify-center">
+            <span className={headCls}>Score</span>
+          </div>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="w-64">
+              <span className={headCls}>Équipe B (Attaque / Défense)</span>
+            </div>
+          </div>
+          <div className="w-44 shrink-0" />
         </div>
-        <div className="w-44 shrink-0" />
+
+        {/* Skeleton rows */}
+        {visible.length === 0 && Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className={`flex items-center py-5 px-6 ${i < 4 ? "border-b border-border" : ""}`}>
+            <div className="w-44 shrink-0"><div className="h-4 w-24 rounded bg-muted animate-pulse" /></div>
+            <div className="flex-1 flex justify-center">
+              <div className="w-64 flex flex-col gap-2">
+                <div className="h-4 w-36 rounded bg-muted animate-pulse" />
+                <div className="h-3 w-20 rounded bg-muted animate-pulse" />
+                <div className="h-4 w-32 rounded bg-muted animate-pulse" />
+                <div className="h-3 w-20 rounded bg-muted animate-pulse" />
+              </div>
+            </div>
+            <div className="w-40 shrink-0 flex justify-center">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-muted animate-pulse" />
+                <span className="text-muted-foreground text-sm">-</span>
+                <div className="w-10 h-10 rounded-lg bg-muted animate-pulse" />
+              </div>
+            </div>
+            <div className="flex-1 flex justify-center">
+              <div className="w-64 flex flex-col gap-2">
+                <div className="h-4 w-36 rounded bg-muted animate-pulse" />
+                <div className="h-3 w-20 rounded bg-muted animate-pulse" />
+                <div className="h-4 w-32 rounded bg-muted animate-pulse" />
+                <div className="h-3 w-20 rounded bg-muted animate-pulse" />
+              </div>
+            </div>
+            <div className="w-44 shrink-0" />
+          </div>
+        ))}
+
+        {/* Rows */}
+        {visible.map((match, i) => (
+          <div key={match.id} className={`flex items-center py-5 px-6 hover:bg-muted/30 transition-colors ${i < visible.length - 1 || !matches.length ? "border-b border-border" : ""}`}>
+            <div className="w-44 shrink-0 text-sm text-muted-foreground">
+              {formatDate(match.played_at)}
+            </div>
+            <div className="flex-1 flex justify-center">
+              <div className="w-64">
+                <TeamPlayers match={match} team="a" />
+              </div>
+            </div>
+            <div className="w-40 shrink-0 flex justify-center">
+              <Score match={match} />
+            </div>
+            <div className="flex-1 flex justify-center">
+              <div className="w-64">
+                <TeamPlayers match={match} team="b" />
+              </div>
+            </div>
+            <div className="w-44 shrink-0 flex justify-end">
+              {isAdmin && (
+                <button
+                  onClick={() => setMatchToDelete(match)}
+                  className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  title="Supprimer ce match"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {matches.length > PAGE_SIZE && (
+          <button
+            onClick={() => setShowAll(v => !v)}
+            className="w-full border-t border-border py-4 flex items-center justify-center gap-2 text-sm font-semibold tracking-widest uppercase text-primary hover:bg-muted/50 transition-colors"
+          >
+            {showAll ? "Voir moins de matchs" : "Voir plus de matchs"}
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${showAll ? "rotate-180" : ""}`}><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+        )}
       </div>
 
-      {/* Skeleton rows */}
-      {visible.length === 0 && Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className={`flex items-center py-5 px-6 ${i < 4 ? "border-b border-border" : ""}`}>
-          <div className="w-44 shrink-0"><div className="h-4 w-24 rounded bg-muted animate-pulse" /></div>
-          <div className="flex-1 flex justify-center">
-            <div className="w-64 flex flex-col gap-2">
-              <div className="h-4 w-36 rounded bg-muted animate-pulse" />
-              <div className="h-3 w-20 rounded bg-muted animate-pulse" />
-              <div className="h-4 w-32 rounded bg-muted animate-pulse" />
-              <div className="h-3 w-20 rounded bg-muted animate-pulse" />
-            </div>
-          </div>
-          <div className="w-40 shrink-0 flex justify-center">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-muted animate-pulse" />
-              <span className="text-muted-foreground text-sm">-</span>
-              <div className="w-10 h-10 rounded-lg bg-muted animate-pulse" />
-            </div>
-          </div>
-          <div className="flex-1 flex justify-center">
-            <div className="w-64 flex flex-col gap-2">
-              <div className="h-4 w-36 rounded bg-muted animate-pulse" />
-              <div className="h-3 w-20 rounded bg-muted animate-pulse" />
-              <div className="h-4 w-32 rounded bg-muted animate-pulse" />
-              <div className="h-3 w-20 rounded bg-muted animate-pulse" />
-            </div>
-          </div>
-          <div className="w-44 shrink-0" />
-        </div>
-      ))}
-
-      {/* Rows */}
-      {visible.map((match, i) => (
-        <div key={match.id} className={`flex items-center py-5 px-6 hover:bg-muted/30 transition-colors ${i < visible.length - 1 || !matches.length ? "border-b border-border" : ""}`}>
-          <div className="w-44 shrink-0 text-sm text-muted-foreground">
-            {formatDate(match.played_at)}
-          </div>
-          <div className="flex-1 flex justify-center">
-            <div className="w-64">
-              <TeamPlayers match={match} team="a" />
-            </div>
-          </div>
-          <div className="w-40 shrink-0 flex justify-center">
-            <Score match={match} />
-          </div>
-          <div className="flex-1 flex justify-center">
-            <div className="w-64">
-              <TeamPlayers match={match} team="b" />
-            </div>
-          </div>
-          <div className="w-44 shrink-0" />
-        </div>
-      ))}
-
-      {matches.length > PAGE_SIZE && (
-        <button
-          onClick={() => setShowAll(v => !v)}
-          className="w-full border-t border-border py-4 flex items-center justify-center gap-2 text-sm font-semibold tracking-widest uppercase text-primary hover:bg-muted/50 transition-colors"
-        >
-          {showAll ? "Voir moins de matchs" : "Voir plus de matchs"}
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${showAll ? "rotate-180" : ""}`}><path d="m6 9 6 6 6-6"/></svg>
-        </button>
+      {matchToDelete && (
+        <DeleteMatchDialog match={matchToDelete} onClose={() => setMatchToDelete(null)} />
       )}
-    </div>
+    </>
   )
 }

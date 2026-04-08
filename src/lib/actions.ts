@@ -51,3 +51,16 @@ export async function saveMatch(input: SaveMatchInput): Promise<void> {
 
   revalidatePath("/")
 }
+
+export async function verifyAdminPassword(password: string): Promise<boolean> {
+  return password === process.env.ADMIN_PASSWORD
+}
+
+export async function deleteMatch(matchId: string, password: string): Promise<void> {
+  if (password !== process.env.ADMIN_PASSWORD) {
+    throw new Error("Unauthorized")
+  }
+  await sql`DELETE FROM match_players WHERE match_id = ${matchId}`
+  await sql`DELETE FROM matches WHERE id = ${matchId}`
+  revalidatePath("/")
+}

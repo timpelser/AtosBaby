@@ -1,8 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { PlusIcon, ShieldIcon, PersonStandingIcon, XIcon } from "lucide-react"
+import { PlusIcon, ShieldIcon, PersonStandingIcon, XIcon, LockIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useAdmin } from "@/components/admin-context"
 import {
   Dialog,
   DialogClose,
@@ -64,6 +65,7 @@ function PlayerField({
 }
 
 export function AddMatchDialog({ players }: { players: Player[] }) {
+  const { isAdmin, logout } = useAdmin()
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
 
@@ -90,10 +92,34 @@ export function AddMatchDialog({ players }: { players: Player[] }) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button size="lg" className="h-10 px-5 text-base" />}>
-        <PlusIcon className="size-5" />
-        Ajouter un match
-      </DialogTrigger>
+      <div className="flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <button
+              onClick={logout}
+              className="hidden sm:flex size-10 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              title="Quitter le mode admin"
+            >
+              <LockIcon className="size-4" />
+            </button>
+          )}
+          <DialogTrigger render={<Button size="lg" className="h-10 px-5 text-base" />}>
+            <PlusIcon className="size-5" />
+            Ajouter un match
+          </DialogTrigger>
+        </div>
+        {isAdmin && (
+          <Button
+            onClick={logout}
+            variant="outline"
+            size="lg"
+            className="sm:hidden h-10 px-5 text-base"
+          >
+            <LockIcon className="size-5" />
+            Quitter admin
+          </Button>
+        )}
+      </div>
 
       <DialogContent showCloseButton={false} className="sm:max-w-lg p-0 overflow-hidden gap-0 border border-border">
         {/* Header */}

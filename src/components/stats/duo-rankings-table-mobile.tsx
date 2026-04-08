@@ -54,7 +54,7 @@ export function DuoRankingsTableMobile({ duoStats }: { duoStats: DuoStats[] }) {
   const [showAll, setShowAll] = useState(false)
   const [selected, setSelected] = useState<{ duo: DuoStats; rank: number } | null>(null)
 
-  const rows = duoStats.slice(3)
+  const rows = duoStats
   const visible = showAll ? rows : rows.slice(0, PAGE_SIZE)
 
   return (
@@ -74,7 +74,7 @@ export function DuoRankingsTableMobile({ duoStats }: { duoStats: DuoStats[] }) {
           </div>
         ))}
         {visible.map((duo, i) => {
-          const rank = i + 4
+          const rank = i + 1
           return (
             <button
               key={`${duo.player_a.id}-${duo.player_b.id}`}

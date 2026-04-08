@@ -57,7 +57,7 @@ const PAGE_SIZE = 7
 
 export function DuoRankingsTable({ duoStats }: { duoStats: DuoStats[] }) {
   const [showAll, setShowAll] = useState(false)
-  const rows = duoStats.slice(3)
+  const rows = duoStats
   const visible = showAll ? rows : rows.slice(0, PAGE_SIZE)
 
   return (
@@ -94,7 +94,7 @@ export function DuoRankingsTable({ duoStats }: { duoStats: DuoStats[] }) {
                 </TableRow>
               ))
             : visible.map((duo, i) => (
-                <DuoRow key={`${duo.player_a.id}-${duo.player_b.id}`} duo={duo} rank={i + 4} />
+                <DuoRow key={`${duo.player_a.id}-${duo.player_b.id}`} duo={duo} rank={i + 1} />
               ))
           }
         </TableBody>
