@@ -25,6 +25,8 @@ export type PlayerStats = {
   losses: number
   matches_played: number
   win_rate: number
+  wilson_score: number
+  z_score: number
 }
 
 export type PositionStats = {

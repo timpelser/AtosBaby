@@ -1,5 +1,5 @@
 import { sql } from "@/lib/db"
-import type { Player, Match, DuoStats, PositionStats } from "@/lib/types"
+import type { Player, Match, PlayerStats, DuoStats, PositionStats } from "@/lib/types"
 
 export async function getPlayers(): Promise<Player[]> {
   const rows = await sql`
@@ -47,6 +47,38 @@ export async function getMatches(): Promise<Match[]> {
       { player: { id: r.team_b_defender_id, email: "", first_name: r.team_b_defender_first_name, last_name: r.team_b_defender_last_name }, position: "defense" as const },
     ],
   })) as Match[]
+}
+
+export async function getPlayerStats(): Promise<PlayerStats[]> {
+  const rows = await sql`
+    WITH base AS (
+      SELECT id, email, first_name, last_name, wins, losses, matches_played, win_rate,
+        CASE WHEN (wins + losses) = 0 THEN 0 ELSE
+          (
+            (wins::float / (wins + losses))
+            + (1.9208 / (2 * (wins + losses)))
+            - 1.96 * SQRT(
+                (wins::float / (wins + losses)) * (1 - wins::float / (wins + losses)) / (wins + losses)
+                + 3.8416 / (4 * (wins + losses) * (wins + losses))
+              )
+          ) / (1 + 3.8416 / (wins + losses))
+        END AS wilson_score
+      FROM player_stats
+    )
+    SELECT *,
+      (wilson_score - AVG(wilson_score) OVER()) / NULLIF(STDDEV(wilson_score) OVER(), 0) AS z_score
+    FROM base
+    ORDER BY wilson_score DESC
+  `
+  return rows.map((r) => ({
+    player: { id: r.id, email: r.email, first_name: r.first_name, last_name: r.last_name },
+    wins: Number(r.wins),
+    losses: Number(r.losses),
+    matches_played: Number(r.matches_played),
+    win_rate: Number(r.win_rate),
+    wilson_score: Number(r.wilson_score),
+    z_score: r.z_score === null ? 0 : Number(r.z_score),
+  })) as PlayerStats[]
 }
 
 export async function getDuoStats(): Promise<DuoStats[]> {

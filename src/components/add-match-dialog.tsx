@@ -68,6 +68,7 @@ export function AddMatchDialog({ players }: { players: Player[] }) {
   const { isAdmin, logout } = useAdmin()
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
+  const [isPending, setIsPending] = useState(false)
 
   function handleOpenChange(next: boolean) {
     setOpen(next)
@@ -76,8 +77,10 @@ export function AddMatchDialog({ players }: { players: Player[] }) {
 
   async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault()
-    if (scoreInvalid || playersInvalid) return
+    if (scoreInvalid || playersInvalid || isPending) return
+    setIsPending(true)
     await saveMatch({ teamA: form.teamA, teamB: form.teamB, scoreA: form.scoreA, scoreB: form.scoreB })
+    setIsPending(false)
     setOpen(false)
     setForm(EMPTY_FORM)
   }
@@ -248,10 +251,17 @@ export function AddMatchDialog({ players }: { players: Player[] }) {
           <div className="px-4 pb-4">
             <Button
               type="submit"
-              disabled={scoreInvalid || playersInvalid}
+              disabled={scoreInvalid || playersInvalid || isPending}
               className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-bold tracking-widest text-sm rounded-xl disabled:opacity-50"
             >
-              ENREGISTRER LE MATCH
+              {isPending ? (
+                <svg className="animate-spin size-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : (
+                "ENREGISTRER LE MATCH"
+              )}
             </Button>
           </div>
         </form>
