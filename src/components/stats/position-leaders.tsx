@@ -1,4 +1,4 @@
-import type { PositionStats } from "@/lib/types"
+import type { PositionStats, PlayerStats } from "@/lib/types"
 
 function getInitials(first: string, last: string) {
   return `${first[0]}${last[0]}`.toUpperCase()
@@ -7,9 +7,11 @@ function getInitials(first: string, last: string) {
 function PositionLeaderCard({
   stats,
   position,
+  overallRank,
 }: {
   stats: PositionStats
   position: "attack" | "defense"
+  overallRank: number | undefined
 }) {
   const isAttack = position === "attack"
   const accentColor = isAttack ? "text-primary" : "text-orange-400"
@@ -54,7 +56,7 @@ function PositionLeaderCard({
             <p className="font-semibold text-foreground">
               {stats.player.first_name} {stats.player.last_name}
             </p>
-            <p className="text-xs text-muted-foreground">Ratio Global: {stats.win_rate.toFixed(0)}%</p>
+            <p className="text-xs text-muted-foreground">Rang Global: #{overallRank !== undefined ? overallRank : "—"}</p>
           </div>
         </div>
         {icon}
@@ -105,9 +107,11 @@ function SkeletonLeaderCard({ position }: { position: "attack" | "defense" }) {
   )
 }
 
-export function PositionLeaders({ attackerStats, defenderStats }: { attackerStats: PositionStats[]; defenderStats: PositionStats[] }) {
+export function PositionLeaders({ attackerStats, defenderStats, playerStats }: { attackerStats: PositionStats[]; defenderStats: PositionStats[]; playerStats: PlayerStats[] }) {
   const topAttacker = attackerStats[0]
   const topDefender = defenderStats[0]
+
+  const overallRankMap = new Map(playerStats.map((p, i) => [p.player.id, i + 1]))
 
   if (!topAttacker || !topDefender) return (
     <section>
@@ -121,8 +125,8 @@ export function PositionLeaders({ attackerStats, defenderStats }: { attackerStat
   return (
     <section>
       <div className="flex flex-col sm:flex-row items-stretch gap-4">
-        <PositionLeaderCard stats={topAttacker} position="attack" />
-        <PositionLeaderCard stats={topDefender} position="defense" />
+        <PositionLeaderCard stats={topAttacker} position="attack" overallRank={overallRankMap.get(topAttacker.player.id)} />
+        <PositionLeaderCard stats={topDefender} position="defense" overallRank={overallRankMap.get(topDefender.player.id)} />
       </div>
     </section>
   )

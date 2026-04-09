@@ -37,7 +37,7 @@ export default async function Home() {
         <main className="px-4 sm:px-6 py-6 space-y-6">
           {/* Top players podium */}
           <TopPlayersPodium playerStats={playerStats} />
-          <PositionLeaders attackerStats={attackerStats} defenderStats={defenderStats} />
+          <PositionLeaders attackerStats={attackerStats} defenderStats={defenderStats} playerStats={playerStats} />
           <div className="hidden sm:block"><PlayerRankingsTable playerStats={playerStats} /></div>
           <div className="sm:hidden"><PlayerRankingsTableMobile playerStats={playerStats} /></div>
 
