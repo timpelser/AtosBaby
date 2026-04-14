@@ -10,9 +10,6 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Atos Baby — Babyfoot",
   description: "Suivi des matchs et statistiques de babyfoot Atos",
-  icons: {
-    icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>",
-  },
 };
 
 export default function RootLayout({
