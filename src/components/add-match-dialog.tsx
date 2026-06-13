@@ -87,6 +87,10 @@ export function AddMatchDialog({ players }: { players: Player[] }) {
 
   const allPlayers = [form.teamA.attacker, form.teamA.defender, form.teamB.attacker, form.teamB.defender]
   const playersInvalid = allPlayers.some((p) => !p) || new Set(allPlayers).size < 4
+
+  function availablePlayers(exclude: string[]) {
+    return players.filter((p) => !exclude.includes(p.email))
+  }
   const scoreInvalid = (form.scoreA !== 10 && form.scoreB !== 10) || (form.scoreA === 10 && form.scoreB === 10)
 
   function clampScore(val: number) {
@@ -146,14 +150,14 @@ export function AddMatchDialog({ players }: { players: Player[] }) {
                   label="Défenseur"
                   value={form.teamA.defender}
                   onChange={(v) => setForm((f) => ({ ...f, teamA: { ...f.teamA, defender: v } }))}
-                  players={players}
+                  players={availablePlayers([form.teamA.attacker, form.teamB.attacker, form.teamB.defender])}
                 />
                 <PlayerField
                   icon={<PersonStandingIcon className="size-3.5" />}
                   label="Attaquant"
                   value={form.teamA.attacker}
                   onChange={(v) => setForm((f) => ({ ...f, teamA: { ...f.teamA, attacker: v } }))}
-                  players={players}
+                  players={availablePlayers([form.teamA.defender, form.teamB.attacker, form.teamB.defender])}
                 />
               </div>
             </div>
@@ -233,14 +237,14 @@ export function AddMatchDialog({ players }: { players: Player[] }) {
                   label="Défenseur"
                   value={form.teamB.defender}
                   onChange={(v) => setForm((f) => ({ ...f, teamB: { ...f.teamB, defender: v } }))}
-                  players={players}
+                  players={availablePlayers([form.teamA.attacker, form.teamA.defender, form.teamB.attacker])}
                 />
                 <PlayerField
                   icon={<PersonStandingIcon className="size-3.5" />}
                   label="Attaquant"
                   value={form.teamB.attacker}
                   onChange={(v) => setForm((f) => ({ ...f, teamB: { ...f.teamB, attacker: v } }))}
-                  players={players}
+                  players={availablePlayers([form.teamA.attacker, form.teamA.defender, form.teamB.defender])}
                 />
               </div>
             </div>
