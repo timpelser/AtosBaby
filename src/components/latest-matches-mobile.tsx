@@ -6,10 +6,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button"
 import { useAdmin } from "@/components/admin-context"
 import { deleteMatch } from "@/lib/actions"
-import { Trash2 } from "lucide-react"
+import { Trash2, XIcon } from "lucide-react"
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
+}
+
+function EloDeltaBadge({ before, after }: { before: number | null; after: number | null }) {
+  if (before == null || after == null) return null
+  const delta = after - before
+  if (delta === 0) return <span className="px-2 py-1 rounded-lg text-xs font-bold bg-muted text-muted-foreground">±0</span>
+  const positive = delta > 0
+  const cls = positive
+    ? "bg-blue-50 text-blue-600"
+    : "bg-orange-50 text-orange-500"
+  return (
+    <span className={`flex items-center gap-0.5 px-2 py-1 rounded-lg text-xs font-bold ${cls}`}>
+      {positive ? "↑" : "↓"} {positive ? `+${delta}` : delta}
+    </span>
+  )
 }
 
 function MatchDialog({ match, open, onClose }: { match: Match; open: boolean; onClose: () => void }) {
@@ -17,66 +32,101 @@ function MatchDialog({ match, open, onClose }: { match: Match; open: boolean; on
   const [confirmDelete, setConfirmDelete] = useState(false)
   const teamAWon = match.score_team_a > match.score_team_b
 
-  const renderTeam = (team: "a" | "b") => {
-    const players = team === "a" ? match.team_a : match.team_b
-    const won = team === "a" ? teamAWon : !teamAWon
-    const label = team === "a" ? "Équipe A" : "Équipe B"
-    const winColor = team === "a" ? "text-primary" : "text-orange-500"
-    const attacker = players.find(p => p.position === "attack")!
-    const defender = players.find(p => p.position === "defense")!
-
-    return (
-      <div>
-        <p className={`text-xs font-semibold tracking-widest uppercase mb-2 ${won ? winColor : "text-muted-foreground"}`}>
-          {label}{won ? " · Victoire" : ""}
-        </p>
-        <div className="flex flex-col gap-1">
-          {[attacker, defender].map(mp => (
-            <div key={mp.player.id} className="flex items-center justify-between">
-              <span className={`text-sm font-semibold ${won ? "text-foreground" : "text-muted-foreground"}`}>
-                {mp.player.first_name} {mp.player.last_name}
-              </span>
-              <span className={`text-xs font-semibold tracking-widest uppercase ${won ? winColor : "text-muted-foreground"}`}>
-                {mp.position === "attack" ? "Attaque" : "Défense"}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
   if (confirmDelete) {
     return <DeleteMatchDialog match={match} onClose={() => { setConfirmDelete(false); onClose() }} />
   }
 
+  const renderTeam = (team: "a" | "b") => {
+    const players = team === "a" ? match.team_a : match.team_b
+    const won = team === "a" ? teamAWon : !teamAWon
+    const label = team === "a" ? "Équipe A" : "Équipe B"
+    const color = team === "a" ? "text-primary" : "text-orange-500"
+    const attacker = players.find(p => p.position === "attack")!
+    const defender = players.find(p => p.position === "defense")!
+
+    return (
+      <div className="space-y-3">
+        <p className={`text-xs font-semibold tracking-widest uppercase ${won ? color : "text-muted-foreground"}`}>
+          {label}
+        </p>
+        {[attacker, defender].map(mp => (
+          <div key={mp.player.id} className="flex items-center gap-2">
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm font-bold truncate ${won ? "text-foreground" : "text-muted-foreground"}`}>
+                {mp.player.first_name} {mp.player.last_name}
+              </p>
+              <p className={`text-xs font-semibold tracking-widest uppercase ${won ? color : "text-muted-foreground"}`}>
+                {mp.position === "attack" ? "Attaque" : "Défense"}
+              </p>
+            </div>
+            {mp.elo_before != null && mp.elo_after != null && (
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground">avant</p>
+                  <p className="text-sm font-semibold text-foreground">{mp.elo_before}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground">après</p>
+                  <p className="text-sm font-semibold text-foreground">{mp.elo_after}</p>
+                </div>
+                <EloDeltaBadge before={mp.elo_before} after={mp.elo_after} />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle className="text-sm font-semibold text-muted-foreground">{formatDate(match.played_at)}</DialogTitle>
-        </DialogHeader>
-        <div className="flex flex-col divide-y divide-border">
-          <div className="pb-4">{renderTeam("a")}</div>
-          <div className="py-4 flex items-center justify-center gap-4">
-            <span className={`w-10 h-10 flex items-center justify-center rounded-lg text-lg font-bold ${teamAWon ? "bg-primary text-white" : "text-foreground"}`}>
-              {match.score_team_a}
-            </span>
-            <span className="text-muted-foreground text-sm">-</span>
-            <span className={`w-10 h-10 flex items-center justify-center rounded-lg text-lg font-bold ${!teamAWon ? "bg-orange-500 text-white" : "text-foreground"}`}>
-              {match.score_team_b}
-            </span>
-          </div>
-          <div className="pt-4">{renderTeam("b")}</div>
-        </div>
-        {isAdmin && (
+      <DialogContent showCloseButton={false} className="p-0 gap-0 overflow-hidden">
+        {/* Date + close */}
+        <div className="flex items-center justify-between px-4 pt-4 pb-3">
+          <span className="text-sm text-muted-foreground">{formatDate(match.played_at)}</span>
           <button
-            onClick={() => setConfirmDelete(true)}
-            className="mt-2 flex items-center justify-center gap-2 w-full py-2 rounded-lg text-sm text-destructive hover:bg-destructive/10 transition-colors"
+            onClick={onClose}
+            className="flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors"
           >
-            <Trash2 size={14} />
-            Supprimer ce match
+            <XIcon className="size-4" />
           </button>
+        </div>
+
+        {/* Score */}
+        <div className="px-4 pb-4 flex items-center justify-center gap-10">
+          <div className="text-center">
+            <p className={`text-[12px] font-semibold tracking-wide uppercase whitespace-nowrap mb-1 ${teamAWon ? "text-primary" : "text-muted-foreground"}`}>
+              Équipe A
+            </p>
+            <span className="text-4xl font-black text-foreground">{match.score_team_a}</span>
+          </div>
+          <span className="text-lg text-muted-foreground">-</span>
+          <div className="text-center">
+            <p className={`text-[12px] font-semibold tracking-wide uppercase whitespace-nowrap mb-1 ${!teamAWon ? "text-orange-500" : "text-muted-foreground"}`}>
+              Équipe B
+            </p>
+            <span className="text-4xl font-black text-foreground">{match.score_team_b}</span>
+          </div>
+        </div>
+
+        {/* Teams */}
+        <div className="border-t border-border px-4 py-4 space-y-5">
+          {renderTeam("a")}
+          <div className="border-t border-border" />
+          {renderTeam("b")}
+        </div>
+
+        {/* Admin delete */}
+        {isAdmin && (
+          <div className="border-t border-border px-4 py-3">
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="flex items-center justify-center gap-2 w-full py-2 rounded-lg text-sm text-destructive hover:bg-destructive/10 transition-colors"
+            >
+              <Trash2 size={14} />
+              Supprimer ce match
+            </button>
+          </div>
         )}
       </DialogContent>
     </Dialog>

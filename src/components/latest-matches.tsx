@@ -12,6 +12,17 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
 }
 
+function EloDelta({ before, after }: { before: number | null; after: number | null }) {
+  if (before == null || after == null) return null
+  const delta = after - before
+  const color = delta > 0 ? "text-green-600" : delta < 0 ? "text-red-500" : "text-muted-foreground"
+  return (
+    <span className={`text-xs font-semibold ${color}`}>
+      {delta > 0 ? "+" : ""}{delta}
+    </span>
+  )
+}
+
 function TeamPlayers({ match, team }: { match: Match; team: "a" | "b" }) {
   const players = team === "a" ? match.team_a : match.team_b
   const won = team === "a"
@@ -32,9 +43,12 @@ function TeamPlayers({ match, team }: { match: Match; team: "a" | "b" }) {
           <p className={`font-bold text-sm ${won ? "text-foreground" : "text-muted-foreground"}`}>
             {mp.player.first_name} {mp.player.last_name}
           </p>
-          <p className={`text-xs font-semibold tracking-widest uppercase mt-0.5 ${labelColor}`}>
-            {mp.position === "attack" ? "Attaque" : "Défense"}
-          </p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <p className={`text-xs font-semibold tracking-widest uppercase ${labelColor}`}>
+              {mp.position === "attack" ? "Attaque" : "Défense"}
+            </p>
+            <EloDelta before={mp.elo_before} after={mp.elo_after} />
+          </div>
         </div>
       ))}
     </div>
