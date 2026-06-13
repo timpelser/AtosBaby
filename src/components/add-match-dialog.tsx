@@ -95,34 +95,33 @@ export function AddMatchDialog({ players }: { players: Player[] }) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <div className="flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
-        <div className="flex items-center gap-2">
-          {isAdmin && (
-            <button
-              onClick={logout}
-              className="hidden sm:flex size-10 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              title="Quitter le mode admin"
-            >
-              <LockIcon className="size-4" />
-            </button>
-          )}
-          <DialogTrigger render={<Button size="lg" className="h-10 px-5 text-base" />}>
-            <PlusIcon className="size-5" />
-            Ajouter un match
-          </DialogTrigger>
-        </div>
+      <div className="flex items-center gap-2 w-full sm:w-auto">
         {isAdmin && (
-          <Button
+          <button
             onClick={logout}
-            variant="outline"
-            size="lg"
-            className="sm:hidden h-10 px-5 text-base"
+            className="hidden sm:flex size-10 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            title="Quitter le mode admin"
           >
-            <LockIcon className="size-5" />
-            Quitter admin
-          </Button>
+            <LockIcon className="size-4" />
+          </button>
         )}
+        <DialogTrigger render={<Button size="lg" className="flex-1 sm:flex-none h-10 px-5 text-base" />}>
+          <PlusIcon className="size-5" />
+          Ajouter un match
+        </DialogTrigger>
       </div>
+      {isAdmin && (
+        <Button
+          onClick={logout}
+          variant="outline"
+          size="lg"
+          className="sm:hidden w-full h-10 px-5 text-base mt-2"
+        >
+          <LockIcon className="size-5" />
+          Quitter admin
+        </Button>
+      )}
+
 
       <DialogContent showCloseButton={false} className="sm:max-w-lg p-0 overflow-hidden gap-0 border border-border">
         {/* Header */}

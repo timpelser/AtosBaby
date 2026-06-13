@@ -27,12 +27,10 @@ function EloInfoDialog() {
             <p className="font-semibold text-foreground mb-2">Formule</p>
             <div className="rounded-lg bg-muted px-4 py-3 space-y-1 font-mono text-xs">
               <p>moy. équipe = (ELO₁ + ELO₂) / 2</p>
+              <p>résultat = 1 (victoire) ou 0 (défaite)</p>
+              <p>K = 64 pour les 10 premières parties, puis 32</p>
               <p>E = 1 / (1 + 10^((moy. adverse − moy. équipe) / 400))</p>
               <p>ELO += K × (résultat − E)</p>
-            </div>
-            <div className="mt-2 space-y-0.5 text-muted-foreground text-xs">
-              <p>résultat = 1 (victoire) · 0 (défaite)</p>
-              <p>K = 64 pour les 10 premières parties, puis 32</p>
             </div>
           </div>
           <div>

@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import { AddMatchDialog } from "@/components/add-match-dialog"
+import { TeamSelectorDialog } from "@/components/team-selector-dialog"
 import { TopPlayersPodium } from "@/components/stats/top-players-podium"
 import { PlayerRankingsTable } from "@/components/stats/player-rankings-table"
 import { PlayerRankingsTableMobile } from "@/components/stats/player-rankings-table-mobile"
@@ -25,11 +26,16 @@ export default async function Home() {
       <div className="min-h-screen bg-muted/30">
         {/* Header */}
         <header className="sticky top-0 z-40 bg-background border-b">
-          <div className="px-4 sm:px-6 h-20 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <AdminLogo />
+          <div className="px-4 sm:px-6 py-3 sm:py-0 sm:h-20 flex flex-col sm:flex-row items-center gap-3 sm:justify-between">
+            <AdminLogo />
+            <div className="w-full sm:w-auto sm:flex sm:flex-row sm:items-center sm:gap-2 space-y-2 sm:space-y-0">
+              <div className="w-full sm:w-auto">
+                <TeamSelectorDialog players={players} playerStats={playerStats} />
+              </div>
+              <div className="w-full sm:w-auto">
+                <AddMatchDialog players={players} />
+              </div>
             </div>
-            <AddMatchDialog players={players} />
           </div>
         </header>
 
