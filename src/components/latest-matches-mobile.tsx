@@ -18,8 +18,8 @@ function EloDeltaBadge({ before, after }: { before: number | null; after: number
   if (delta === 0) return <span className="px-2 py-1 rounded-lg text-xs font-bold bg-muted text-muted-foreground">±0</span>
   const positive = delta > 0
   const cls = positive
-    ? "bg-blue-50 text-blue-600"
-    : "bg-orange-50 text-orange-500"
+    ? "bg-green-50 text-green-600"
+    : "bg-red-50 text-red-500"
   return (
     <span className={`flex items-center gap-0.5 px-2 py-1 rounded-lg text-xs font-bold ${cls}`}>
       {positive ? "↑" : "↓"} {positive ? `+${delta}` : delta}
