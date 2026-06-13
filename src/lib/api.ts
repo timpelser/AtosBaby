@@ -13,24 +13,35 @@ export async function getPlayers(): Promise<Player[]> {
 export async function getMatches(): Promise<Match[]> {
   const rows = await sql`
     SELECT
-      id,
-      score_team_a,
-      score_team_b,
-      played_at,
-      team_a_attacker_id,
-      team_a_attacker_first_name,
-      team_a_attacker_last_name,
-      team_a_defender_id,
-      team_a_defender_first_name,
-      team_a_defender_last_name,
-      team_b_attacker_id,
-      team_b_attacker_first_name,
-      team_b_attacker_last_name,
-      team_b_defender_id,
-      team_b_defender_first_name,
-      team_b_defender_last_name
-    FROM match_details
-    ORDER BY played_at DESC
+      m.id,
+      m.score_team_a,
+      m.score_team_b,
+      m.played_at,
+      MAX(CASE WHEN mp.team = 'A' AND mp.position = 'attack'  THEN mp.player_id::text END) AS a_att_id,
+      MAX(CASE WHEN mp.team = 'A' AND mp.position = 'attack'  THEN p.first_name END)       AS a_att_first,
+      MAX(CASE WHEN mp.team = 'A' AND mp.position = 'attack'  THEN p.last_name END)        AS a_att_last,
+      MAX(CASE WHEN mp.team = 'A' AND mp.position = 'attack'  THEN mp.elo_before END)      AS a_att_elo_before,
+      MAX(CASE WHEN mp.team = 'A' AND mp.position = 'attack'  THEN mp.elo_after END)       AS a_att_elo_after,
+      MAX(CASE WHEN mp.team = 'A' AND mp.position = 'defense' THEN mp.player_id::text END) AS a_def_id,
+      MAX(CASE WHEN mp.team = 'A' AND mp.position = 'defense' THEN p.first_name END)       AS a_def_first,
+      MAX(CASE WHEN mp.team = 'A' AND mp.position = 'defense' THEN p.last_name END)        AS a_def_last,
+      MAX(CASE WHEN mp.team = 'A' AND mp.position = 'defense' THEN mp.elo_before END)      AS a_def_elo_before,
+      MAX(CASE WHEN mp.team = 'A' AND mp.position = 'defense' THEN mp.elo_after END)       AS a_def_elo_after,
+      MAX(CASE WHEN mp.team = 'B' AND mp.position = 'attack'  THEN mp.player_id::text END) AS b_att_id,
+      MAX(CASE WHEN mp.team = 'B' AND mp.position = 'attack'  THEN p.first_name END)       AS b_att_first,
+      MAX(CASE WHEN mp.team = 'B' AND mp.position = 'attack'  THEN p.last_name END)        AS b_att_last,
+      MAX(CASE WHEN mp.team = 'B' AND mp.position = 'attack'  THEN mp.elo_before END)      AS b_att_elo_before,
+      MAX(CASE WHEN mp.team = 'B' AND mp.position = 'attack'  THEN mp.elo_after END)       AS b_att_elo_after,
+      MAX(CASE WHEN mp.team = 'B' AND mp.position = 'defense' THEN mp.player_id::text END) AS b_def_id,
+      MAX(CASE WHEN mp.team = 'B' AND mp.position = 'defense' THEN p.first_name END)       AS b_def_first,
+      MAX(CASE WHEN mp.team = 'B' AND mp.position = 'defense' THEN p.last_name END)        AS b_def_last,
+      MAX(CASE WHEN mp.team = 'B' AND mp.position = 'defense' THEN mp.elo_before END)      AS b_def_elo_before,
+      MAX(CASE WHEN mp.team = 'B' AND mp.position = 'defense' THEN mp.elo_after END)       AS b_def_elo_after
+    FROM matches m
+    JOIN match_players mp ON mp.match_id = m.id
+    JOIN players p ON p.id = mp.player_id
+    GROUP BY m.id, m.score_team_a, m.score_team_b, m.played_at
+    ORDER BY m.played_at DESC
   `
 
   return rows.map((r) => ({
@@ -39,12 +50,12 @@ export async function getMatches(): Promise<Match[]> {
     score_team_b: r.score_team_b,
     played_at: r.played_at,
     team_a: [
-      { player: { id: r.team_a_attacker_id, email: "", first_name: r.team_a_attacker_first_name, last_name: r.team_a_attacker_last_name }, position: "attack" as const },
-      { player: { id: r.team_a_defender_id, email: "", first_name: r.team_a_defender_first_name, last_name: r.team_a_defender_last_name }, position: "defense" as const },
+      { player: { id: r.a_att_id, email: "", first_name: r.a_att_first, last_name: r.a_att_last }, position: "attack" as const, elo_before: r.a_att_elo_before != null ? Number(r.a_att_elo_before) : null, elo_after: r.a_att_elo_after != null ? Number(r.a_att_elo_after) : null },
+      { player: { id: r.a_def_id, email: "", first_name: r.a_def_first, last_name: r.a_def_last }, position: "defense" as const, elo_before: r.a_def_elo_before != null ? Number(r.a_def_elo_before) : null, elo_after: r.a_def_elo_after != null ? Number(r.a_def_elo_after) : null },
     ],
     team_b: [
-      { player: { id: r.team_b_attacker_id, email: "", first_name: r.team_b_attacker_first_name, last_name: r.team_b_attacker_last_name }, position: "attack" as const },
-      { player: { id: r.team_b_defender_id, email: "", first_name: r.team_b_defender_first_name, last_name: r.team_b_defender_last_name }, position: "defense" as const },
+      { player: { id: r.b_att_id, email: "", first_name: r.b_att_first, last_name: r.b_att_last }, position: "attack" as const, elo_before: r.b_att_elo_before != null ? Number(r.b_att_elo_before) : null, elo_after: r.b_att_elo_after != null ? Number(r.b_att_elo_after) : null },
+      { player: { id: r.b_def_id, email: "", first_name: r.b_def_first, last_name: r.b_def_last }, position: "defense" as const, elo_before: r.b_def_elo_before != null ? Number(r.b_def_elo_before) : null, elo_after: r.b_def_elo_after != null ? Number(r.b_def_elo_after) : null },
     ],
   })) as Match[]
 }

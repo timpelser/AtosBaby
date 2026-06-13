@@ -109,7 +109,7 @@ export function AddMatchDialog({ players }: { players: Player[] }) {
             <LockIcon className="size-4" />
           </button>
         )}
-        <DialogTrigger render={<Button size="lg" className="flex-1 sm:flex-none h-10 px-5 text-base" />}>
+        <DialogTrigger render={<Button size="lg" className="flex-1 sm:flex-none h-10 px-5 text-base bg-blue-600 hover:bg-blue-700" />}>
           <PlusIcon className="size-5" />
           Ajouter un match
         </DialogTrigger>

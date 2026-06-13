@@ -8,6 +8,8 @@ export type Player = {
 export type MatchPlayer = {
   player: Player
   position: "attack" | "defense"
+  elo_before: number | null
+  elo_after: number | null
 }
 
 export type Match = {
