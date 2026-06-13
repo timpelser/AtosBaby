@@ -162,15 +162,19 @@ export function TeamSelectorDialog({ players, playerStats }: { players: Player[]
         <div className="p-4 space-y-4">
           {/* 4 player selectors shared between tabs */}
           <div className="grid grid-cols-2 gap-3">
-            {[0, 1, 2, 3].map((i) => (
-              <PlayerCombobox
-                key={i}
-                players={players}
-                value={emails[i]}
-                onChange={(v) => setEmail(i, v)}
-                placeholder={`Joueur ${i + 1}`}
-              />
-            ))}
+            {[0, 1, 2, 3].map((i) => {
+              const otherEmails = emails.filter((e, j) => j !== i && e)
+              const availablePlayers = players.filter((p) => !otherEmails.includes(p.email))
+              return (
+                <PlayerCombobox
+                  key={i}
+                  players={availablePlayers}
+                  value={emails[i]}
+                  onChange={(v) => setEmail(i, v)}
+                  placeholder={`Joueur ${i + 1}`}
+                />
+              )
+            })}
           </div>
 
           <Tabs defaultValue="random">
