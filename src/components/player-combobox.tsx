@@ -97,7 +97,7 @@ export function PlayerCombobox({ players, value, onChange, placeholder = "Sélec
           />
         }
       >
-        <span className="truncate">{displayValue ?? placeholder}</span>
+        <span className="min-w-0 truncate">{displayValue ?? placeholder}</span>
         <ChevronsUpDownIcon className="ml-2 shrink-0 opacity-50" />
       </PopoverTrigger>
       <PopoverContent className="w-72 p-0">
