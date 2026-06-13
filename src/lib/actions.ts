@@ -4,7 +4,7 @@ import { sql } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 
 function getK(gamesPlayed: number): number {
-  return gamesPlayed < 10 ? 64 : 32
+  return gamesPlayed < 10 ? 94 : 64
 }
 
 type SaveMatchInput = {
