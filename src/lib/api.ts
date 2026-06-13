@@ -51,24 +51,12 @@ export async function getMatches(): Promise<Match[]> {
 
 export async function getPlayerStats(): Promise<PlayerStats[]> {
   const rows = await sql`
-    WITH base AS (
-      SELECT id, email, first_name, last_name, wins, losses, matches_played, win_rate,
-        CASE WHEN (wins + losses) = 0 THEN 0 ELSE
-          (
-            (wins::float / (wins + losses))
-            + (1.9208 / (2 * (wins + losses)))
-            - 1.96 * SQRT(
-                (wins::float / (wins + losses)) * (1 - wins::float / (wins + losses)) / (wins + losses)
-                + 3.8416 / (4 * (wins + losses) * (wins + losses))
-              )
-          ) / (1 + 3.8416 / (wins + losses))
-        END AS wilson_score
-      FROM player_stats
-    )
-    SELECT *,
-      (wilson_score - AVG(wilson_score) OVER()) / NULLIF(STDDEV(wilson_score) OVER(), 0) AS z_score
-    FROM base
-    ORDER BY wilson_score DESC
+    SELECT
+      p.id, p.email, p.first_name, p.last_name, p.elo,
+      ps.wins, ps.losses, ps.matches_played, ps.win_rate
+    FROM player_stats ps
+    JOIN players p ON p.id = ps.id
+    ORDER BY p.elo DESC
   `
   return rows.map((r) => ({
     player: { id: r.id, email: r.email, first_name: r.first_name, last_name: r.last_name },
@@ -76,8 +64,7 @@ export async function getPlayerStats(): Promise<PlayerStats[]> {
     losses: Number(r.losses),
     matches_played: Number(r.matches_played),
     win_rate: Number(r.win_rate),
-    wilson_score: Number(r.wilson_score),
-    z_score: r.z_score === null ? 0 : Number(r.z_score),
+    elo: Number(r.elo),
   })) as PlayerStats[]
 }
 
@@ -86,20 +73,9 @@ export async function getDuoStats(): Promise<DuoStats[]> {
     SELECT
       player_a_id, player_a_email, player_a_first_name, player_a_last_name,
       player_b_id, player_b_email, player_b_first_name, player_b_last_name,
-      matches_played, wins, losses, win_rate,
-      -- Wilson score lower bound (z=1.96, 95% confidence)
-      CASE WHEN (wins + losses) = 0 THEN 0 ELSE
-        (
-          (wins::float / (wins + losses))
-          + (1.9208 / (2 * (wins + losses)))
-          - 1.96 * SQRT(
-              (wins::float / (wins + losses)) * (1 - wins::float / (wins + losses)) / (wins + losses)
-              + 3.8416 / (4 * (wins + losses) * (wins + losses))
-            )
-        ) / (1 + 3.8416 / (wins + losses))
-      END AS wilson_score
+      matches_played, wins, losses, win_rate
     FROM duo_stats
-    ORDER BY wilson_score DESC
+    ORDER BY wins DESC, win_rate DESC
   `
 
   return rows.map((r) => ({
@@ -109,60 +85,35 @@ export async function getDuoStats(): Promise<DuoStats[]> {
     losses: Number(r.losses),
     matches_played: Number(r.matches_played),
     win_rate: Number(r.win_rate),
-    wilson_score: Number(r.wilson_score),
   })) as DuoStats[]
 }
 
 export async function getAttackerStats(): Promise<PositionStats[]> {
   const rows = await sql`
-    SELECT id, email, first_name, last_name, wins, losses, win_rate,
-      -- Wilson score lower bound (z=1.96, 95% confidence)
-      CASE WHEN (wins + losses) = 0 THEN 0 ELSE
-        (
-          (wins::float / (wins + losses))
-          + (1.9208 / (2 * (wins + losses)))
-          - 1.96 * SQRT(
-              (wins::float / (wins + losses)) * (1 - wins::float / (wins + losses)) / (wins + losses)
-              + 3.8416 / (4 * (wins + losses) * (wins + losses))
-            )
-        ) / (1 + 3.8416 / (wins + losses))
-      END AS wilson_score
+    SELECT id, email, first_name, last_name, wins, losses, win_rate
     FROM position_stats
     WHERE position = 'attack'
-    ORDER BY wins DESC, wilson_score DESC
+    ORDER BY wins DESC, win_rate DESC
   `
   return rows.map((r) => ({
     player: { id: r.id, email: r.email, first_name: r.first_name, last_name: r.last_name },
     wins: Number(r.wins),
     losses: Number(r.losses),
     win_rate: Number(r.win_rate),
-    wilson_score: Number(r.wilson_score),
   })) as PositionStats[]
 }
 
 export async function getDefenderStats(): Promise<PositionStats[]> {
   const rows = await sql`
-    SELECT id, email, first_name, last_name, wins, losses, win_rate,
-      -- Wilson score lower bound (z=1.96, 95% confidence)
-      CASE WHEN (wins + losses) = 0 THEN 0 ELSE
-        (
-          (wins::float / (wins + losses))
-          + (1.9208 / (2 * (wins + losses)))
-          - 1.96 * SQRT(
-              (wins::float / (wins + losses)) * (1 - wins::float / (wins + losses)) / (wins + losses)
-              + 3.8416 / (4 * (wins + losses) * (wins + losses))
-            )
-        ) / (1 + 3.8416 / (wins + losses))
-      END AS wilson_score
+    SELECT id, email, first_name, last_name, wins, losses, win_rate
     FROM position_stats
     WHERE position = 'defense'
-    ORDER BY wins DESC, wilson_score DESC
+    ORDER BY wins DESC, win_rate DESC
   `
   return rows.map((r) => ({
     player: { id: r.id, email: r.email, first_name: r.first_name, last_name: r.last_name },
     wins: Number(r.wins),
     losses: Number(r.losses),
     win_rate: Number(r.win_rate),
-    wilson_score: Number(r.wilson_score),
   })) as PositionStats[]
 }

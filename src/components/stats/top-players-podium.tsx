@@ -37,8 +37,8 @@ function ChampionCard({ stats }: { stats: PlayerStats }) {
           <p className="text-3xl font-bold text-white">{stats.win_rate.toFixed(0)}%</p>
         </div>
         <div className="text-center">
-          <p className="text-xs font-semibold tracking-widest text-white/60 uppercase">Wilson</p>
-          <p className="text-3xl font-bold text-white">{(stats.wilson_score * 100).toFixed(0)}%</p>
+          <p className="text-xs font-semibold tracking-widest text-white/60 uppercase">ELO</p>
+          <p className="text-3xl font-bold text-white">{stats.elo}</p>
         </div>
       </div>
     </div>
@@ -81,8 +81,8 @@ function RunnerUpCard({ stats, rank }: { stats: PlayerStats; rank: 2 | 3 }) {
           <p className="text-3xl text-foreground">{stats.win_rate.toFixed(0)}%</p>
         </div>
         <div className="text-center">
-          <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">Wilson</p>
-          <p className="text-3xl text-foreground">{(stats.wilson_score * 100).toFixed(0)}%</p>
+          <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">ELO</p>
+          <p className="text-3xl text-foreground">{stats.elo}</p>
         </div>
       </div>
     </div>

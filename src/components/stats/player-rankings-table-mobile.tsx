@@ -2,18 +2,82 @@
 
 import { useState } from "react"
 import type { PlayerStats } from "@/lib/types"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
-function WilsonBadge({ value, zScore }: { value: number; zScore: number }) {
+function EloInfoDialog() {
+  return (
+    <Dialog>
+      <DialogTrigger
+        aria-label="Comment fonctionne le score ELO ?"
+        className="inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+        </svg>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Classement ELO</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 text-sm">
+          <p className="text-muted-foreground">
+            Le score ELO tient compte de la force de vos adversaires. Battre une équipe forte rapporte plus de points que battre une équipe faible — et perdre contre eux coûte peu.
+          </p>
+          <div>
+            <p className="font-semibold text-foreground mb-2">Formule</p>
+            <div className="rounded-lg bg-muted px-4 py-3 space-y-1 font-mono text-xs">
+              <p>moy. équipe = (ELO₁ + ELO₂) / 2</p>
+              <p>E = 1 / (1 + 10^((moy. adverse − moy. équipe) / 400))</p>
+              <p>ELO += K × (résultat − E)</p>
+            </div>
+            <div className="mt-2 space-y-0.5 text-muted-foreground text-xs">
+              <p>résultat = 1 (victoire) · 0 (défaite)</p>
+              <p>K = 64 pour les 10 premières parties, puis 32</p>
+            </div>
+          </div>
+          <div>
+            <p className="font-semibold text-foreground mb-2">Exemple</p>
+            <div className="rounded-lg border border-border px-4 py-3 space-y-2 text-xs">
+              <p className="text-muted-foreground">
+                Alice <span className="text-foreground">(1200)</span> + Bob <span className="text-foreground">(1000)</span>
+                <span className="mx-1.5 font-semibold text-foreground">vs</span>
+                Carlos <span className="text-foreground">(900)</span> + Dana <span className="text-foreground">(800)</span>
+              </p>
+              <p className="text-muted-foreground">
+                Moy. A : <span className="text-foreground font-medium">1100</span> · Moy. B : <span className="text-foreground font-medium">850</span>
+                <span className="mx-1.5">→</span>
+                Victoire A attendue : <span className="text-foreground font-semibold">81%</span>
+              </p>
+              <div className="border-t border-border pt-2 space-y-1">
+                <p>
+                  <span className="text-green-600 font-semibold">Si A gagne</span>
+                  <span className="text-muted-foreground mx-1">→</span>
+                  Alice & Bob <span className="text-green-600 font-semibold">+6 pts</span> chacun
+                </p>
+                <p>
+                  <span className="text-orange-500 font-semibold">Si B gagne</span>
+                  <span className="text-muted-foreground mx-1">→</span>
+                  Carlos & Dana <span className="text-green-600 font-semibold">+26 pts</span> · Alice & Bob <span className="text-red-500 font-semibold">−26 pts</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function EloBadge({ elo }: { elo: number }) {
   const color =
-    zScore > 2   ? "bg-green-100 text-green-600" :
-    zScore > 1   ? "bg-primary/10 text-primary" :
-    zScore >= -1 ? "bg-muted text-muted-foreground" :
-    zScore >= -2 ? "bg-orange-100 text-orange-500" :
-                   "bg-red-100 text-red-500"
+    elo >= 1200 ? "bg-green-100 text-green-600" :
+    elo >= 1100 ? "bg-primary/10 text-primary" :
+    elo >= 900  ? "bg-muted text-muted-foreground" :
+    elo >= 800  ? "bg-orange-100 text-orange-500" :
+                  "bg-red-100 text-red-500"
   return (
     <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${color}`}>
-      {(value * 100).toFixed(1)}%
+      {elo}
     </span>
   )
 }
@@ -47,8 +111,11 @@ function PlayerStatsDialog({ stats, rank, open, onClose }: { stats: PlayerStats;
             </span>
           </div>
           <div className="flex items-center justify-between py-3">
-            <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">Wilson</p>
-            <WilsonBadge value={stats.wilson_score} zScore={stats.z_score} />
+            <span className="inline-flex items-center gap-1.5">
+              <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">ELO</p>
+              <EloInfoDialog />
+            </span>
+            <EloBadge elo={stats.elo} />
           </div>
         </div>
       </DialogContent>

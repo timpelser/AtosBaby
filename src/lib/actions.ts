@@ -3,6 +3,10 @@
 import { sql } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 
+function getK(gamesPlayed: number): number {
+  return gamesPlayed < 10 ? 64 : 32
+}
+
 type SaveMatchInput = {
   teamA: { attacker: string; defender: string }
   teamB: { attacker: string; defender: string }
@@ -24,6 +28,100 @@ async function upsertPlayer(email: string): Promise<string> {
     RETURNING id
   `
   return rows[0].id as string
+}
+
+async function updateElo(
+  teamAIds: [string, string],
+  teamBIds: [string, string],
+  teamAWon: boolean
+): Promise<void> {
+  const [a1, a2, b1, b2] = teamAIds.concat(teamBIds)
+
+  // Fetch ELO and games played for all 4 players.
+  // COUNT - 1 because the current match is already inserted at this point.
+  const rows = await sql`
+    SELECT p.id::text, p.elo, COUNT(mp.id) - 1 AS games_before
+    FROM players p
+    LEFT JOIN match_players mp ON mp.player_id = p.id
+    WHERE p.id IN (${a1}::uuid, ${a2}::uuid, ${b1}::uuid, ${b2}::uuid)
+    GROUP BY p.id, p.elo
+  `
+
+  const eloMap = new Map(rows.map((r) => [r.id as string, Number(r.elo)]))
+  const gamesMap = new Map(rows.map((r) => [r.id as string, Number(r.games_before)]))
+
+  const teamAAvg = ((eloMap.get(a1) ?? 1000) + (eloMap.get(a2) ?? 1000)) / 2
+  const teamBAvg = ((eloMap.get(b1) ?? 1000) + (eloMap.get(b2) ?? 1000)) / 2
+
+  const expectedA = 1 / (1 + Math.pow(10, (teamBAvg - teamAAvg) / 400))
+  const expectedB = 1 - expectedA
+  const actualA = teamAWon ? 1 : 0
+  const actualB = teamAWon ? 0 : 1
+
+  const delta = (id: string, actual: number, expected: number) =>
+    Math.round(getK(gamesMap.get(id) ?? 0) * (actual - expected))
+
+  await Promise.all([
+    sql`UPDATE players SET elo = elo + ${delta(a1, actualA, expectedA)} WHERE id = ${a1}::uuid`,
+    sql`UPDATE players SET elo = elo + ${delta(a2, actualA, expectedA)} WHERE id = ${a2}::uuid`,
+    sql`UPDATE players SET elo = elo + ${delta(b1, actualB, expectedB)} WHERE id = ${b1}::uuid`,
+    sql`UPDATE players SET elo = elo + ${delta(b2, actualB, expectedB)} WHERE id = ${b2}::uuid`,
+  ])
+}
+
+async function recomputeAllElos(): Promise<void> {
+  await sql`UPDATE players SET elo = 1000`
+
+  const matches = await sql`
+    SELECT
+      m.score_team_a,
+      m.score_team_b,
+      MAX(CASE WHEN mp.team = 'A' AND mp.position = 'attack'  THEN mp.player_id::text END)::text AS a_att,
+      MAX(CASE WHEN mp.team = 'A' AND mp.position = 'defense' THEN mp.player_id::text END)::text AS a_def,
+      MAX(CASE WHEN mp.team = 'B' AND mp.position = 'attack'  THEN mp.player_id::text END)::text AS b_att,
+      MAX(CASE WHEN mp.team = 'B' AND mp.position = 'defense' THEN mp.player_id::text END)::text AS b_def
+    FROM matches m
+    JOIN match_players mp ON mp.match_id = m.id
+    GROUP BY m.id, m.score_team_a, m.score_team_b, m.played_at
+    ORDER BY m.played_at ASC
+  `
+
+  const eloMap = new Map<string, number>()
+  const gamesMap = new Map<string, number>()
+  const getElo = (id: string) => eloMap.get(id) ?? 1000
+  const getGames = (id: string) => gamesMap.get(id) ?? 0
+
+  for (const m of matches) {
+    const { a_att, a_def, b_att, b_def, score_team_a, score_team_b } = m as Record<string, string | number>
+
+    const teamAAvg = (getElo(a_att as string) + getElo(a_def as string)) / 2
+    const teamBAvg = (getElo(b_att as string) + getElo(b_def as string)) / 2
+
+    const expectedA = 1 / (1 + Math.pow(10, (teamBAvg - teamAAvg) / 400))
+    const expectedB = 1 - expectedA
+    const teamAWon = Number(score_team_a) > Number(score_team_b)
+    const actualA = teamAWon ? 1 : 0
+    const actualB = teamAWon ? 0 : 1
+
+    const delta = (id: string, actual: number, expected: number) =>
+      Math.round(getK(getGames(id)) * (actual - expected))
+
+    eloMap.set(a_att as string, getElo(a_att as string) + delta(a_att as string, actualA, expectedA))
+    eloMap.set(a_def as string, getElo(a_def as string) + delta(a_def as string, actualA, expectedA))
+    eloMap.set(b_att as string, getElo(b_att as string) + delta(b_att as string, actualB, expectedB))
+    eloMap.set(b_def as string, getElo(b_def as string) + delta(b_def as string, actualB, expectedB))
+
+    gamesMap.set(a_att as string, getGames(a_att as string) + 1)
+    gamesMap.set(a_def as string, getGames(a_def as string) + 1)
+    gamesMap.set(b_att as string, getGames(b_att as string) + 1)
+    gamesMap.set(b_def as string, getGames(b_def as string) + 1)
+  }
+
+  await Promise.all(
+    Array.from(eloMap.entries()).map(([id, elo]) =>
+      sql`UPDATE players SET elo = ${elo} WHERE id = ${id}::uuid`
+    )
+  )
 }
 
 export async function saveMatch(input: SaveMatchInput): Promise<void> {
@@ -49,6 +147,12 @@ export async function saveMatch(input: SaveMatchInput): Promise<void> {
     (${matchId}, ${teamBDefenderId}, 'B', 'defense')
   `
 
+  await updateElo(
+    [teamAAttackerId, teamADefenderId],
+    [teamBAttackerId, teamBDefenderId],
+    input.scoreA > input.scoreB
+  )
+
   revalidatePath("/")
 }
 
@@ -62,5 +166,6 @@ export async function deleteMatch(matchId: string, password: string): Promise<vo
   }
   await sql`DELETE FROM match_players WHERE match_id = ${matchId}`
   await sql`DELETE FROM matches WHERE id = ${matchId}`
+  await recomputeAllElos()
   revalidatePath("/")
 }

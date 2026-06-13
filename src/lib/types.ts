@@ -25,8 +25,7 @@ export type PlayerStats = {
   losses: number
   matches_played: number
   win_rate: number
-  wilson_score: number
-  z_score: number
+  elo: number
 }
 
 export type PositionStats = {
@@ -34,7 +33,6 @@ export type PositionStats = {
   wins: number
   losses: number
   win_rate: number
-  wilson_score: number
 }
 
 export type DuoStats = {
@@ -44,5 +42,4 @@ export type DuoStats = {
   losses: number
   matches_played: number
   win_rate: number
-  wilson_score: number
 }
