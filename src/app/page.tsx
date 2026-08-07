@@ -42,10 +42,10 @@ export default async function Home() {
         {/* Page content */}
         <main className="px-4 sm:px-6 py-6 space-y-6">
           {/* Top players podium */}
-          <TopPlayersPodium playerStats={playerStats} />
+          <TopPlayersPodium playerStats={playerStats} matches={matches} />
           <PositionLeaders attackerStats={attackerStats} defenderStats={defenderStats} playerStats={playerStats} />
-          <div className="hidden sm:block"><PlayerRankingsTable playerStats={playerStats} /></div>
-          <div className="sm:hidden"><PlayerRankingsTableMobile playerStats={playerStats} /></div>
+          <div className="hidden sm:block"><PlayerRankingsTable playerStats={playerStats} matches={matches} /></div>
+          <div className="sm:hidden"><PlayerRankingsTableMobile playerStats={playerStats} matches={matches} /></div>
 
           {/* Latest matches */}
           <section>

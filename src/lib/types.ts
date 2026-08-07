@@ -45,3 +45,16 @@ export type DuoStats = {
   matches_played: number
   win_rate: number
 }
+
+export type EloHistoryPoint = {
+  played_at: string
+  elo_after: number
+}
+
+export type RivalryStat = {
+  opponent: Player
+  matches_played: number
+  wins: number
+  losses: number
+  win_rate: number
+}

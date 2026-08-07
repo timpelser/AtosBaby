@@ -1,8 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import type { PlayerStats } from "@/lib/types"
+import type { PlayerStats, Match } from "@/lib/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { PlayerProfileDialog } from "@/components/player-profile-dialog"
 
 function EloInfoDialog() {
   return (
@@ -123,7 +124,7 @@ function PlayerStatsDialog({ stats, rank, open, onClose }: { stats: PlayerStats;
 
 const PAGE_SIZE = 7
 
-export function PlayerRankingsTableMobile({ playerStats }: { playerStats: PlayerStats[] }) {
+export function PlayerRankingsTableMobile({ playerStats, matches }: { playerStats: PlayerStats[]; matches: Match[] }) {
   const [showAll, setShowAll] = useState(false)
   const [selected, setSelected] = useState<{ stats: PlayerStats; rank: number } | null>(null)
 
@@ -173,14 +174,20 @@ export function PlayerRankingsTableMobile({ playerStats }: { playerStats: Player
         )}
       </div>
 
-      {selected && (
-        <PlayerStatsDialog
-          stats={selected.stats}
-          rank={selected.rank}
-          open={true}
-          onClose={() => setSelected(null)}
-        />
-      )}
+      {selected && (() => {
+        const playerMatches = matches.filter(m =>
+          [...m.team_a, ...m.team_b].some(mp => mp.player.id === selected.stats.player.id)
+        )
+        return (
+          <PlayerProfileDialog
+            stats={selected.stats}
+            rank={selected.rank}
+            playerMatches={playerMatches}
+            open={true}
+            onClose={() => setSelected(null)}
+          />
+        )
+      })()}
     </>
   )
 }

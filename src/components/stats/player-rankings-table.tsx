@@ -1,9 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import type { PlayerStats } from "@/lib/types"
+import type { PlayerStats, Match } from "@/lib/types"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { PlayerProfileDialog } from "@/components/player-profile-dialog"
 
 function getInitials(first: string, last: string) {
   return `${first[0]}${last[0]}`.toUpperCase()
@@ -87,38 +88,55 @@ function EloInfoDialog() {
   )
 }
 
-function PlayerRow({ stats, rank }: { stats: PlayerStats; rank: number }) {
+function PlayerRow({ stats, rank, matches }: { stats: PlayerStats; rank: number; matches: Match[] }) {
   const rankLabel = String(rank).padStart(2, "0")
+  const [open, setOpen] = useState(false)
+  const playerMatches = matches.filter(m =>
+    [...m.team_a, ...m.team_b].some(mp => mp.player.id === stats.player.id)
+  )
 
   return (
-    <TableRow className="h-16">
-      <TableCell className="font-bold text-foreground text-base pl-6 w-20">{rankLabel}</TableCell>
-      <TableCell className="w-1/2">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-semibold ring-2 ring-background">
-            {getInitials(stats.player.first_name, stats.player.last_name)}
+    <>
+      <TableRow className="h-16">
+        <TableCell className="font-bold text-foreground text-base pl-6 w-20">{rankLabel}</TableCell>
+        <TableCell className="w-1/2">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setOpen(true)}
+              className="w-9 h-9 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-semibold ring-2 ring-background hover:bg-primary/25 transition-colors cursor-pointer"
+              aria-label={`Profil de ${stats.player.first_name} ${stats.player.last_name}`}
+            >
+              {getInitials(stats.player.first_name, stats.player.last_name)}
+            </button>
+            <span className="font-semibold text-foreground">
+              {stats.player.first_name} {stats.player.last_name}
+            </span>
           </div>
-          <span className="font-semibold text-foreground">
-            {stats.player.first_name} {stats.player.last_name}
-          </span>
-        </div>
-      </TableCell>
-      <TableCell className="text-foreground text-center">{stats.wins}</TableCell>
-      <TableCell className="text-muted-foreground text-center">{stats.losses}</TableCell>
-      <TableCell className="text-foreground text-center">{stats.matches_played}</TableCell>
-      <TableCell className="text-center text-foreground">
-        {stats.win_rate.toFixed(1)}%
-      </TableCell>
-      <TableCell className="text-center">
-        <EloBadge elo={stats.elo} />
-      </TableCell>
-    </TableRow>
+        </TableCell>
+        <TableCell className="text-foreground text-center">{stats.wins}</TableCell>
+        <TableCell className="text-muted-foreground text-center">{stats.losses}</TableCell>
+        <TableCell className="text-foreground text-center">{stats.matches_played}</TableCell>
+        <TableCell className="text-center text-foreground">
+          {stats.win_rate.toFixed(1)}%
+        </TableCell>
+        <TableCell className="text-center">
+          <EloBadge elo={stats.elo} />
+        </TableCell>
+      </TableRow>
+      <PlayerProfileDialog
+        stats={stats}
+        rank={rank}
+        playerMatches={playerMatches}
+        open={open}
+        onClose={() => setOpen(false)}
+      />
+    </>
   )
 }
 
 const PAGE_SIZE = 7
 
-export function PlayerRankingsTable({ playerStats }: { playerStats: PlayerStats[] }) {
+export function PlayerRankingsTable({ playerStats, matches }: { playerStats: PlayerStats[]; matches: Match[] }) {
   const [showAll, setShowAll] = useState(false)
   const visible = showAll ? playerStats : playerStats.slice(0, PAGE_SIZE)
 
@@ -160,7 +178,7 @@ export function PlayerRankingsTable({ playerStats }: { playerStats: PlayerStats[
                 </TableRow>
               ))
             : visible.map((stats, i) => (
-                <PlayerRow key={stats.player.id} stats={stats} rank={i + 1} />
+                <PlayerRow key={stats.player.id} stats={stats} rank={i + 1} matches={matches} />
               ))
           }
         </TableBody>

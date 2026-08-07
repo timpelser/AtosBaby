@@ -2,6 +2,7 @@
 
 import { sql } from "@/lib/db"
 import { revalidatePath } from "next/cache"
+import type { EloHistoryPoint, RivalryStat } from "@/lib/types"
 
 // Matches before this date used conservative K values (players didn't know ELO existed)
 const ELO_ERA_CUTOFF = new Date("2026-06-13")
@@ -188,6 +189,71 @@ export async function saveMatch(input: SaveMatchInput): Promise<void> {
   )
 
   revalidatePath("/")
+}
+
+export async function getPlayerEloHistory(playerId: string): Promise<EloHistoryPoint[]> {
+  const rows = await sql`
+    SELECT m.played_at, mp.elo_after
+    FROM match_players mp
+    JOIN matches m ON m.id = mp.match_id
+    WHERE mp.player_id = ${playerId}::uuid
+      AND mp.elo_after IS NOT NULL
+    ORDER BY m.played_at ASC
+  `
+  return rows.map((r) => ({
+    played_at: r.played_at as string,
+    elo_after: Number(r.elo_after),
+  }))
+}
+
+export async function getPlayerRivalries(playerId: string): Promise<RivalryStat[]> {
+  const rows = await sql`
+    WITH player_in_match AS (
+      SELECT
+        mp.match_id,
+        mp.team AS player_team,
+        CASE
+          WHEN mp.team = 'A' THEN m.score_team_a > m.score_team_b
+          ELSE m.score_team_b > m.score_team_a
+        END AS player_won
+      FROM match_players mp
+      JOIN matches m ON m.id = mp.match_id
+      WHERE mp.player_id = ${playerId}::uuid
+    ),
+    rivals AS (
+      SELECT
+        omp.player_id AS rival_id,
+        COUNT(*)::int AS total,
+        SUM(CASE WHEN pim.player_won THEN 1 ELSE 0 END)::int AS wins
+      FROM player_in_match pim
+      JOIN match_players omp
+        ON omp.match_id = pim.match_id
+        AND omp.team != pim.player_team
+      GROUP BY omp.player_id
+    )
+    SELECT
+      r.rival_id::text,
+      p.first_name, p.last_name, p.email,
+      r.total AS matches_played,
+      r.wins,
+      r.total - r.wins AS losses
+    FROM rivals r
+    JOIN players p ON p.id = r.rival_id
+    ORDER BY r.total DESC, r.wins DESC
+    LIMIT 3
+  `
+  return rows.map((r) => ({
+    opponent: {
+      id: r.rival_id as string,
+      email: r.email as string,
+      first_name: r.first_name as string,
+      last_name: r.last_name as string,
+    },
+    matches_played: Number(r.matches_played),
+    wins: Number(r.wins),
+    losses: Number(r.losses),
+    win_rate: Number(r.matches_played) > 0 ? (Number(r.wins) / Number(r.matches_played)) * 100 : 0,
+  }))
 }
 
 export async function verifyAdminPassword(password: string): Promise<boolean> {
