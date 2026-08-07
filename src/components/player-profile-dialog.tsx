@@ -482,6 +482,13 @@ function MatchesTab({ matches, playerId }: { matches: Match[]; playerId: string 
         const teamNames = (team: typeof match.team_a) =>
           team.map(mp => `${mp.player.first_name[0]}. ${mp.player.last_name}`).join(" + ")
 
+        // Always show the player's team on the left
+        const myTeam  = playerOnA ? match.team_a : match.team_b
+        const oppTeam = playerOnA ? match.team_b : match.team_a
+        const myScore  = playerOnA ? match.score_team_a : match.score_team_b
+        const oppScore = playerOnA ? match.score_team_b : match.score_team_a
+        const playerWon = myScore > oppScore
+
         return (
           <button
             key={match.id}
@@ -503,20 +510,20 @@ function MatchesTab({ matches, playerId }: { matches: Match[]; playerId: string 
               )}
             </div>
             <div className="flex items-center gap-2">
-              <span className={`flex-1 text-xs truncate ${playerOnA ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
-                {teamNames(match.team_a)}
+              <span className={`flex-1 text-xs truncate ${playerWon ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                {teamNames(myTeam)}
               </span>
               <div className="flex items-center gap-1 shrink-0">
-                <span className={`w-6 h-6 flex items-center justify-center rounded text-xs font-bold ${teamAWon ? "bg-primary text-primary-foreground" : "text-foreground"}`}>
-                  {match.score_team_a}
+                <span className={`w-6 h-6 flex items-center justify-center rounded text-xs font-bold ${playerWon ? "bg-primary text-primary-foreground" : "text-foreground"}`}>
+                  {myScore}
                 </span>
                 <span className="text-muted-foreground text-xs">-</span>
-                <span className={`w-6 h-6 flex items-center justify-center rounded text-xs font-bold ${!teamAWon ? "bg-orange-500 text-white" : "text-foreground"}`}>
-                  {match.score_team_b}
+                <span className={`w-6 h-6 flex items-center justify-center rounded text-xs font-bold ${!playerWon ? "bg-orange-500 text-white" : "text-foreground"}`}>
+                  {oppScore}
                 </span>
               </div>
-              <span className={`flex-1 text-xs truncate text-right ${!playerOnA ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
-                {teamNames(match.team_b)}
+              <span className={`flex-1 text-xs truncate text-right ${!playerWon ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                {teamNames(oppTeam)}
               </span>
             </div>
           </button>
