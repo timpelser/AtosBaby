@@ -3,7 +3,12 @@
 import { sql } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 
-function getK(gamesPlayed: number): number {
+// Matches before this date used conservative K values (players didn't know ELO existed)
+const ELO_ERA_CUTOFF = new Date("2026-06-13")
+
+function getK(gamesPlayed: number, matchDate?: Date): number {
+  const isHistorical = matchDate != null && matchDate < ELO_ERA_CUTOFF
+  if (isHistorical) return gamesPlayed < 10 ? 64 : 32
   return gamesPlayed < 10 ? 94 : 64
 }
 
@@ -60,7 +65,7 @@ async function updateElo(
   const actualB = teamAWon ? 0 : 1
 
   const delta = (id: string, actual: number, expected: number) =>
-    Math.round(getK(gamesMap.get(id) ?? 0) * (actual - expected))
+    Math.round(getK(gamesMap.get(id) ?? 0, new Date()) * (actual - expected))
 
   const eloBefore = (id: string) => eloMap.get(id) ?? 1000
   const eloAfter = (id: string, actual: number, expected: number) =>
@@ -86,6 +91,7 @@ async function recomputeAllElos(): Promise<void> {
       m.id AS match_id,
       m.score_team_a,
       m.score_team_b,
+      m.played_at,
       MAX(CASE WHEN mp.team = 'A' AND mp.position = 'attack'  THEN mp.player_id::text END)::text AS a_att,
       MAX(CASE WHEN mp.team = 'A' AND mp.position = 'defense' THEN mp.player_id::text END)::text AS a_def,
       MAX(CASE WHEN mp.team = 'B' AND mp.position = 'attack'  THEN mp.player_id::text END)::text AS b_att,
@@ -102,7 +108,8 @@ async function recomputeAllElos(): Promise<void> {
   const getGames = (id: string) => gamesMap.get(id) ?? 0
 
   for (const m of matches) {
-    const { match_id, a_att, a_def, b_att, b_def, score_team_a, score_team_b } = m as Record<string, string | number>
+    const { match_id, a_att, a_def, b_att, b_def, score_team_a, score_team_b, played_at } = m as Record<string, string | number>
+    const matchDate = new Date(played_at as string)
 
     const eloBefore = { a_att: getElo(a_att as string), a_def: getElo(a_def as string), b_att: getElo(b_att as string), b_def: getElo(b_def as string) }
 
@@ -116,7 +123,7 @@ async function recomputeAllElos(): Promise<void> {
     const actualB = teamAWon ? 0 : 1
 
     const delta = (id: string, actual: number, expected: number) =>
-      Math.round(getK(getGames(id)) * (actual - expected))
+      Math.round(getK(getGames(id), matchDate) * (actual - expected))
 
     const newElos = {
       a_att: eloBefore.a_att + delta(a_att as string, actualA, expectedA),
