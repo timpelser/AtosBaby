@@ -84,7 +84,7 @@ async function updateElo(
   ])
 }
 
-async function recomputeAllElos(): Promise<void> {
+export async function recomputeAllElos(): Promise<void> {
   await sql`UPDATE players SET elo = 1000`
 
   const matches = await sql`
@@ -100,7 +100,11 @@ async function recomputeAllElos(): Promise<void> {
     FROM matches m
     JOIN match_players mp ON mp.match_id = m.id
     GROUP BY m.id, m.score_team_a, m.score_team_b, m.played_at
-    ORDER BY m.played_at ASC
+  `
+
+  const decays = await sql`
+    SELECT id::text, player_id::text, points, applied_at
+    FROM elo_decay_events
   `
 
   const eloMap = new Map<string, number>()
@@ -108,47 +112,76 @@ async function recomputeAllElos(): Promise<void> {
   const getElo = (id: string) => eloMap.get(id) ?? 1000
   const getGames = (id: string) => gamesMap.get(id) ?? 0
 
-  for (const m of matches) {
-    const { match_id, a_att, a_def, b_att, b_def, score_team_a, score_team_b, played_at } = m as Record<string, string | number>
-    const matchDate = new Date(played_at as string)
+  // Merge matches and decay events into a single chronological timeline
+  type TimelineEvent =
+    | { kind: "match"; at: number; data: Record<string, string | number> }
+    | { kind: "decay"; at: number; id: string; player_id: string; points: number }
 
-    const eloBefore = { a_att: getElo(a_att as string), a_def: getElo(a_def as string), b_att: getElo(b_att as string), b_def: getElo(b_def as string) }
+  const timeline: TimelineEvent[] = [
+    ...matches.map(m => ({
+      kind: "match" as const,
+      at: new Date(m.played_at as string).getTime(),
+      data: m as Record<string, string | number>,
+    })),
+    ...decays.map(d => ({
+      kind: "decay" as const,
+      at: new Date(d.applied_at as string).getTime(),
+      id: d.id as string,
+      player_id: d.player_id as string,
+      points: Number(d.points),
+    })),
+  ].sort((a, b) => a.at - b.at)
 
-    const teamAAvg = (eloBefore.a_att + eloBefore.a_def) / 2
-    const teamBAvg = (eloBefore.b_att + eloBefore.b_def) / 2
+  for (const event of timeline) {
+    if (event.kind === "match") {
+      const { match_id, a_att, a_def, b_att, b_def, score_team_a, score_team_b, played_at } = event.data
+      const matchDate = new Date(played_at as string)
 
-    const expectedA = 1 / (1 + Math.pow(10, (teamBAvg - teamAAvg) / 400))
-    const expectedB = 1 - expectedA
-    const teamAWon = Number(score_team_a) > Number(score_team_b)
-    const actualA = teamAWon ? 1 : 0
-    const actualB = teamAWon ? 0 : 1
+      const eloBefore = { a_att: getElo(a_att as string), a_def: getElo(a_def as string), b_att: getElo(b_att as string), b_def: getElo(b_def as string) }
+      const teamAAvg = (eloBefore.a_att + eloBefore.a_def) / 2
+      const teamBAvg = (eloBefore.b_att + eloBefore.b_def) / 2
+      const expectedA = 1 / (1 + Math.pow(10, (teamBAvg - teamAAvg) / 400))
+      const expectedB = 1 - expectedA
+      const teamAWon = Number(score_team_a) > Number(score_team_b)
+      const actualA = teamAWon ? 1 : 0
+      const actualB = teamAWon ? 0 : 1
+      const delta = (id: string, actual: number, expected: number) =>
+        Math.round(getK(getGames(id), matchDate) * (actual - expected))
 
-    const delta = (id: string, actual: number, expected: number) =>
-      Math.round(getK(getGames(id), matchDate) * (actual - expected))
+      const newElos = {
+        a_att: eloBefore.a_att + delta(a_att as string, actualA, expectedA),
+        a_def: eloBefore.a_def + delta(a_def as string, actualA, expectedA),
+        b_att: eloBefore.b_att + delta(b_att as string, actualB, expectedB),
+        b_def: eloBefore.b_def + delta(b_def as string, actualB, expectedB),
+      }
 
-    const newElos = {
-      a_att: eloBefore.a_att + delta(a_att as string, actualA, expectedA),
-      a_def: eloBefore.a_def + delta(a_def as string, actualA, expectedA),
-      b_att: eloBefore.b_att + delta(b_att as string, actualB, expectedB),
-      b_def: eloBefore.b_def + delta(b_def as string, actualB, expectedB),
+      eloMap.set(a_att as string, newElos.a_att)
+      eloMap.set(a_def as string, newElos.a_def)
+      eloMap.set(b_att as string, newElos.b_att)
+      eloMap.set(b_def as string, newElos.b_def)
+
+      gamesMap.set(a_att as string, getGames(a_att as string) + 1)
+      gamesMap.set(a_def as string, getGames(a_def as string) + 1)
+      gamesMap.set(b_att as string, getGames(b_att as string) + 1)
+      gamesMap.set(b_def as string, getGames(b_def as string) + 1)
+
+      await Promise.all([
+        sql`UPDATE match_players SET elo_before = ${eloBefore.a_att}, elo_after = ${newElos.a_att} WHERE match_id = ${match_id as string} AND player_id = ${a_att as string}::uuid`,
+        sql`UPDATE match_players SET elo_before = ${eloBefore.a_def}, elo_after = ${newElos.a_def} WHERE match_id = ${match_id as string} AND player_id = ${a_def as string}::uuid`,
+        sql`UPDATE match_players SET elo_before = ${eloBefore.b_att}, elo_after = ${newElos.b_att} WHERE match_id = ${match_id as string} AND player_id = ${b_att as string}::uuid`,
+        sql`UPDATE match_players SET elo_before = ${eloBefore.b_def}, elo_after = ${newElos.b_def} WHERE match_id = ${match_id as string} AND player_id = ${b_def as string}::uuid`,
+      ])
+    } else {
+      // Decay event: subtract points from in-memory ELO and persist elo_before/elo_after
+      const eloBefore = getElo(event.player_id)
+      const eloAfter = eloBefore + event.points  // points is negative (-10)
+      eloMap.set(event.player_id, eloAfter)
+      await sql`
+        UPDATE elo_decay_events
+        SET elo_before = ${eloBefore}, elo_after = ${eloAfter}
+        WHERE id = ${event.id}::uuid
+      `
     }
-
-    eloMap.set(a_att as string, newElos.a_att)
-    eloMap.set(a_def as string, newElos.a_def)
-    eloMap.set(b_att as string, newElos.b_att)
-    eloMap.set(b_def as string, newElos.b_def)
-
-    gamesMap.set(a_att as string, getGames(a_att as string) + 1)
-    gamesMap.set(a_def as string, getGames(a_def as string) + 1)
-    gamesMap.set(b_att as string, getGames(b_att as string) + 1)
-    gamesMap.set(b_def as string, getGames(b_def as string) + 1)
-
-    await Promise.all([
-      sql`UPDATE match_players SET elo_before = ${eloBefore.a_att}, elo_after = ${newElos.a_att} WHERE match_id = ${match_id as string} AND player_id = ${a_att as string}::uuid`,
-      sql`UPDATE match_players SET elo_before = ${eloBefore.a_def}, elo_after = ${newElos.a_def} WHERE match_id = ${match_id as string} AND player_id = ${a_def as string}::uuid`,
-      sql`UPDATE match_players SET elo_before = ${eloBefore.b_att}, elo_after = ${newElos.b_att} WHERE match_id = ${match_id as string} AND player_id = ${b_att as string}::uuid`,
-      sql`UPDATE match_players SET elo_before = ${eloBefore.b_def}, elo_after = ${newElos.b_def} WHERE match_id = ${match_id as string} AND player_id = ${b_def as string}::uuid`,
-    ])
   }
 
   await Promise.all(
@@ -192,18 +225,36 @@ export async function saveMatch(input: SaveMatchInput): Promise<void> {
 }
 
 export async function getPlayerEloHistory(playerId: string): Promise<EloHistoryPoint[]> {
-  const rows = await sql`
-    SELECT m.played_at, mp.elo_after
-    FROM match_players mp
-    JOIN matches m ON m.id = mp.match_id
-    WHERE mp.player_id = ${playerId}::uuid
-      AND mp.elo_after IS NOT NULL
-    ORDER BY m.played_at ASC
-  `
-  return rows.map((r) => ({
-    played_at: r.played_at as string,
-    elo_after: Number(r.elo_after),
-  }))
+  const [matchRows, decayRows] = await Promise.all([
+    sql`
+      SELECT m.played_at, mp.elo_after
+      FROM match_players mp
+      JOIN matches m ON m.id = mp.match_id
+      WHERE mp.player_id = ${playerId}::uuid
+        AND mp.elo_after IS NOT NULL
+    `,
+    sql`
+      SELECT applied_at AS played_at, elo_after
+      FROM elo_decay_events
+      WHERE player_id = ${playerId}::uuid
+        AND elo_after IS NOT NULL
+    `,
+  ])
+
+  const points: EloHistoryPoint[] = [
+    ...matchRows.map(r => ({
+      played_at: r.played_at as string,
+      elo_after: Number(r.elo_after),
+      type: "match" as const,
+    })),
+    ...decayRows.map(r => ({
+      played_at: r.played_at as string,
+      elo_after: Number(r.elo_after),
+      type: "decay" as const,
+    })),
+  ]
+
+  return points.sort((a, b) => new Date(a.played_at).getTime() - new Date(b.played_at).getTime())
 }
 
 export async function getPlayerRivalries(playerId: string): Promise<RivalryStat[]> {

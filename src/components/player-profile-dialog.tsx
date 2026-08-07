@@ -176,6 +176,14 @@ function EloChart({ history }: { history: EloHistoryPoint[] }) {
           <circle cx={pts[0].x} cy={pts[0].y} r={3} fill="#3b82f6" opacity={0.6} />
           <circle cx={pts[pts.length - 1].x} cy={pts[pts.length - 1].y} r={4} fill="#3b82f6" />
 
+          {/* Decay event markers */}
+          {history.map((h, i) => h.type === "decay" ? (
+            <g key={`decay-${i}`}>
+              <circle cx={pts[i].x} cy={pts[i].y} r={5} fill="#ef4444" opacity={0.15} />
+              <circle cx={pts[i].x} cy={pts[i].y} r={3} fill="#ef4444" />
+            </g>
+          ) : null)}
+
           {/* Hover crosshair */}
           {hover !== null && (
             <g>
@@ -202,6 +210,9 @@ function EloChart({ history }: { history: EloHistoryPoint[] }) {
             <div className="bg-popover border border-border rounded-lg px-2.5 py-1.5 shadow-md text-xs whitespace-nowrap">
               <p className="font-bold text-foreground">{hoverPoint.elo_after}</p>
               <p className="text-muted-foreground">{shortDate(hoverPoint.played_at)}</p>
+              {hoverPoint.type === "decay" && (
+                <p className="text-red-500 font-semibold">−10 inactivité</p>
+              )}
             </div>
           </div>
         )}

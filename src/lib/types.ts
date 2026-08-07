@@ -49,6 +49,7 @@ export type DuoStats = {
 export type EloHistoryPoint = {
   played_at: string
   elo_after: number
+  type: "match" | "decay"
 }
 
 export type RivalryStat = {
