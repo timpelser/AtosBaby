@@ -4,6 +4,9 @@ import { useState } from "react"
 import type { PlayerStats, Match } from "@/lib/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { PlayerProfileDialog } from "@/components/player-profile-dialog"
+import { getStreakInfo } from "@/lib/streaks"
+import { StreakBadge, TierParticles, getTierStyle } from "@/components/stats/streak-tier"
+import { cn } from "@/lib/utils"
 
 function EloInfoDialog() {
   return (
@@ -124,7 +127,7 @@ function PlayerStatsDialog({ stats, rank, open, onClose }: { stats: PlayerStats;
 
 const PAGE_SIZE = 7
 
-export function PlayerRankingsTableMobile({ playerStats, matches }: { playerStats: PlayerStats[]; matches: Match[] }) {
+export function PlayerRankingsTableMobile({ playerStats, matches, streaks }: { playerStats: PlayerStats[]; matches: Match[]; streaks: Record<string, number> }) {
   const [showAll, setShowAll] = useState(false)
   const [selected, setSelected] = useState<{ stats: PlayerStats; rank: number } | null>(null)
 
@@ -148,17 +151,27 @@ export function PlayerRankingsTableMobile({ playerStats, matches }: { playerStat
         ))}
         {visible.map((stats, i) => {
           const rank = i + 1
+          const streak = streaks[stats.player.id] ?? 0
+          const info = getStreakInfo(streak)
+          const tier = getTierStyle(info)
           return (
             <button
               key={stats.player.id}
               onClick={() => setSelected({ stats, rank })}
-              className={`w-full flex items-center px-4 h-14 hover:bg-muted/50 active:bg-muted transition-colors text-left ${i < visible.length - 1 ? "border-b border-border" : ""}`}
+              className={cn(
+                "relative w-full flex items-center gap-2 px-4 h-14 text-left transition-colors",
+                tier
+                  ? tier.container
+                  : cn("hover:bg-muted/50 active:bg-muted", i < visible.length - 1 && "border-b border-border")
+              )}
             >
-              <span className="w-12 font-bold text-foreground text-sm">{String(rank).padStart(2, "0")}</span>
-              <span className="flex-1 font-semibold text-foreground text-sm truncate">
+              {tier && <TierParticles info={info} />}
+              <span className={cn("w-10 font-bold text-sm shrink-0", tier?.lightText ?? "text-foreground")}>{String(rank).padStart(2, "0")}</span>
+              <span className={cn("flex-1 font-semibold text-sm truncate", tier?.lightText ?? "text-foreground")}>
                 {stats.player.first_name} {stats.player.last_name}
               </span>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground shrink-0"><path d="m9 18 6-6-6-6"/></svg>
+              <StreakBadge streak={streak} />
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("shrink-0", tier?.lightText ?? "text-muted-foreground")}><path d="m9 18 6-6-6-6"/></svg>
             </button>
           )
         })}

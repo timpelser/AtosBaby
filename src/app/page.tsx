@@ -11,6 +11,7 @@ import { LatestMatchesMobile } from "@/components/latest-matches-mobile"
 import { AdminProvider } from "@/components/admin-context"
 import { AdminLogo } from "@/components/admin-logo"
 import { getMatches, getPlayerStats, getAttackerStats, getDefenderStats, getPlayers } from "@/lib/api"
+import { computeStreaks } from "@/lib/streaks"
 
 export default async function Home() {
   const [matches, playerStats, attackerStats, defenderStats, players] = await Promise.all([
@@ -20,6 +21,8 @@ export default async function Home() {
     getDefenderStats(),
     getPlayers(),
   ])
+
+  const streaks = computeStreaks(matches)
 
   return (
     <AdminProvider>
@@ -44,8 +47,9 @@ export default async function Home() {
           {/* Top players podium */}
           <TopPlayersPodium playerStats={playerStats} matches={matches} />
           <PositionLeaders attackerStats={attackerStats} defenderStats={defenderStats} playerStats={playerStats} matches={matches} />
-          <div className="hidden sm:block"><PlayerRankingsTable playerStats={playerStats} matches={matches} /></div>
-          <div className="sm:hidden"><PlayerRankingsTableMobile playerStats={playerStats} matches={matches} /></div>
+
+          <div className="hidden sm:block"><PlayerRankingsTable playerStats={playerStats} matches={matches} streaks={streaks} /></div>
+          <div className="sm:hidden"><PlayerRankingsTableMobile playerStats={playerStats} matches={matches} streaks={streaks} /></div>
 
           {/* Latest matches */}
           <section>

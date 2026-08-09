@@ -109,7 +109,7 @@ export function AddMatchDialog({ players }: { players: Player[] }) {
             <LockIcon className="size-4" />
           </button>
         )}
-        <DialogTrigger render={<Button size="lg" className="flex-1 sm:flex-none h-10 px-5 text-base bg-blue-600 hover:bg-blue-700" />}>
+        <DialogTrigger render={<Button size="lg" className="flex-1 sm:flex-none h-10 px-5 text-base bg-sky-600 hover:bg-sky-700" />}>
           <PlusIcon className="size-5" />
           Ajouter un match
         </DialogTrigger>
@@ -130,7 +130,7 @@ export function AddMatchDialog({ players }: { players: Player[] }) {
       <DialogContent showCloseButton={false} className="sm:max-w-lg p-0 overflow-hidden gap-0 border border-border">
         {/* Header */}
         <div className="relative px-6 pt-4 text-center">
-          <DialogTitle className="font-bold text-lg tracking-wide text-blue-600">
+          <DialogTitle className="font-bold text-lg tracking-wide text-sky-600">
             Nouveau Match
           </DialogTitle>
           <DialogClose
@@ -143,7 +143,7 @@ export function AddMatchDialog({ players }: { players: Player[] }) {
         <form onSubmit={handleSubmit}>
           <div className="p-4 space-y-3">
             {/* Équipe A */}
-            <div className="rounded-2xl bg-blue-50 border border-blue-100 p-4 space-y-3 ">
+            <div className="rounded-2xl bg-sky-50 border border-sky-100 p-4 space-y-3 ">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <PlayerField
                   icon={<ShieldIcon className="size-3.5" />}
@@ -178,12 +178,12 @@ export function AddMatchDialog({ players }: { players: Player[] }) {
                     <button
                       type="button"
                       onClick={() => setForm((f) => ({ ...f, scoreA: 10 }))}
-                      className="flex flex-1 h-9 items-center justify-center rounded-tr-lg bg-blue-100 hover:bg-blue-200 text-blue-600 text-xs font-bold transition-colors"
+                      className="flex flex-1 h-9 items-center justify-center rounded-tr-lg bg-sky-100 hover:bg-sky-200 text-sky-600 text-xs font-bold transition-colors"
                     >
                       +10
                     </button>
                   </div>
-                  <span className="text-6xl font-extrabold text-blue-600 leading-none w-24 text-center py-2">
+                  <span className="text-6xl font-extrabold text-sky-600 leading-none w-24 text-center py-2">
                     {form.scoreA}
                   </span>
                   <button
@@ -255,7 +255,7 @@ export function AddMatchDialog({ players }: { players: Player[] }) {
             <Button
               type="submit"
               disabled={scoreInvalid || playersInvalid || isPending}
-              className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-bold tracking-widest text-sm rounded-xl disabled:opacity-50"
+              className="w-full h-12 bg-sky-600 hover:bg-sky-700 text-white font-bold tracking-widest text-sm rounded-xl disabled:opacity-50"
             >
               {isPending ? (
                 <svg className="animate-spin size-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
