@@ -167,20 +167,20 @@ function EloChart({ history }: { history: EloHistoryPoint[] }) {
           ))}
 
           {/* Area fill */}
-          <path d={fillD} fill="#3b82f6" fillOpacity={0.08} />
+          <path d={fillD} className="fill-blue-500" fillOpacity={0.08} />
 
           {/* Blue line */}
-          <path d={lineD} stroke="#3b82f6" strokeWidth={2} fill="none" strokeLinejoin="round" strokeLinecap="round" />
+          <path d={lineD} className="stroke-blue-500" strokeWidth={2} fill="none" strokeLinejoin="round" strokeLinecap="round" />
 
           {/* Start / end dots */}
-          <circle cx={pts[0].x} cy={pts[0].y} r={3} fill="#3b82f6" opacity={0.6} />
-          <circle cx={pts[pts.length - 1].x} cy={pts[pts.length - 1].y} r={4} fill="#3b82f6" />
+          <circle cx={pts[0].x} cy={pts[0].y} r={3} className="fill-blue-500" opacity={0.6} />
+          <circle cx={pts[pts.length - 1].x} cy={pts[pts.length - 1].y} r={4} className="fill-blue-500" />
 
           {/* Decay event markers */}
           {history.map((h, i) => h.type === "decay" ? (
             <g key={`decay-${i}`}>
-              <circle cx={pts[i].x} cy={pts[i].y} r={5} fill="#ef4444" opacity={0.15} />
-              <circle cx={pts[i].x} cy={pts[i].y} r={3} fill="#ef4444" />
+              <circle cx={pts[i].x} cy={pts[i].y} r={5} className="fill-red-500" opacity={0.15} />
+              <circle cx={pts[i].x} cy={pts[i].y} r={3} className="fill-red-500" />
             </g>
           ) : null)}
 
@@ -189,9 +189,9 @@ function EloChart({ history }: { history: EloHistoryPoint[] }) {
             <g>
               <line
                 x1={hover.x} y1={MT} x2={hover.x} y2={MT + PH}
-                stroke="#3b82f6" strokeWidth={1} strokeDasharray="3 3" strokeOpacity={0.5}
+                className="stroke-blue-500" strokeWidth={1} strokeDasharray="3 3" strokeOpacity={0.5}
               />
-              <circle cx={hover.x} cy={hover.y} r={5} fill="#3b82f6" />
+              <circle cx={hover.x} cy={hover.y} r={5} className="fill-blue-500" />
               <circle cx={hover.x} cy={hover.y} r={3} fill="white" />
             </g>
           )}
@@ -270,7 +270,7 @@ function H2HCard({
               <circle
                 cx={CX} cy={CY} r={RADIUS}
                 fill="none"
-                stroke="#16a34a"
+                className="stroke-green-600"
                 strokeWidth={STROKE}
                 strokeDasharray={`${winArc - GAP} ${circumference - winArc + GAP}`}
                 strokeLinecap="round"
@@ -282,7 +282,7 @@ function H2HCard({
               <circle
                 cx={CX} cy={CY} r={RADIUS}
                 fill="none"
-                stroke="#ef4444"
+                className="stroke-red-500"
                 strokeWidth={STROKE}
                 strokeDasharray={`${lossArc - GAP} ${circumference - lossArc + GAP}`}
                 strokeLinecap="round"
@@ -296,7 +296,7 @@ function H2HCard({
               dominantBaseline="middle"
               fontSize={13}
               fontWeight="700"
-              fill={pct >= 50 ? "#16a34a" : "#ef4444"}
+              className={pct >= 50 ? "fill-green-600" : "fill-red-500"}
             >
               {pct}%
             </text>

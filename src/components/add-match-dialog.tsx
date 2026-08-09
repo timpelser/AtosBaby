@@ -210,12 +210,12 @@ export function AddMatchDialog({ players }: { players: Player[] }) {
                     <button
                       type="button"
                       onClick={() => setForm((f) => ({ ...f, scoreB: 10 }))}
-                      className="flex flex-1 h-9 items-center justify-center rounded-tr-lg bg-orange-100 hover:bg-orange-200 text-orange-700 text-xs font-bold transition-colors"
+                      className="flex flex-1 h-9 items-center justify-center rounded-tr-lg bg-orange-100 hover:bg-orange-200 text-orange-400 text-xs font-bold transition-colors"
                     >
                       +10
                     </button>
                   </div>
-                  <span className="text-6xl font-extrabold text-orange-700 leading-none w-24 text-center py-2">
+                  <span className="text-6xl font-extrabold text-orange-400 leading-none w-24 text-center py-2">
                     {form.scoreB}
                   </span>
                   <button
