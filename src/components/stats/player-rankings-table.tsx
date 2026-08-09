@@ -2,9 +2,11 @@
 
 import { useState } from "react"
 import type { PlayerStats, Match } from "@/lib/types"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { PlayerProfileDialog } from "@/components/player-profile-dialog"
+import { getStreakInfo } from "@/lib/streaks"
+import { StreakBadge, TierParticles, getTierStyle } from "@/components/stats/streak-tier"
+import { cn } from "@/lib/utils"
 
 function getInitials(first: string, last: string) {
   return `${first[0]}${last[0]}`.toUpperCase()
@@ -88,41 +90,63 @@ function EloInfoDialog() {
   )
 }
 
-function PlayerRow({ stats, rank, matches }: { stats: PlayerStats; rank: number; matches: Match[] }) {
+// Shared column layout — header and every row (neutral or tiered) line up on
+// this same grid so tiered rows can break out into rounded "cards" without
+// losing column alignment with the rest of the table.
+const GRID_COLS = "grid-cols-[48px_1fr_92px_92px_100px_84px_84px]"
+
+function PlayerRow({ stats, rank, matches, streak, showDivider }: { stats: PlayerStats; rank: number; matches: Match[]; streak: number; showDivider: boolean }) {
   const rankLabel = String(rank).padStart(2, "0")
   const [open, setOpen] = useState(false)
   const playerMatches = matches.filter(m =>
     [...m.team_a, ...m.team_b].some(mp => mp.player.id === stats.player.id)
   )
+  const info = getStreakInfo(streak)
+  const tier = getTierStyle(info)
 
   return (
     <>
-      <TableRow className="h-16">
-        <TableCell className="font-bold text-foreground text-base pl-6 w-20">{rankLabel}</TableCell>
-        <TableCell className="w-1/2">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setOpen(true)}
-              className="w-9 h-9 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-semibold ring-2 ring-background hover:bg-primary/25 transition-colors cursor-pointer"
-              aria-label={`Profil de ${stats.player.first_name} ${stats.player.last_name}`}
-            >
-              {getInitials(stats.player.first_name, stats.player.last_name)}
-            </button>
-            <span className="font-semibold text-foreground">
-              {stats.player.first_name} {stats.player.last_name}
-            </span>
-          </div>
-        </TableCell>
-        <TableCell className="text-foreground text-center">{stats.wins}</TableCell>
-        <TableCell className="text-muted-foreground text-center">{stats.losses}</TableCell>
-        <TableCell className="text-foreground text-center">{stats.matches_played}</TableCell>
-        <TableCell className="text-center text-foreground">
-          {stats.win_rate.toFixed(1)}%
-        </TableCell>
-        <TableCell className="text-center">
-          <EloBadge elo={stats.elo} />
-        </TableCell>
-      </TableRow>
+      <div
+        className={cn(
+          "grid gap-4 items-center",
+          GRID_COLS,
+          tier ? cn("px-[18px] py-4", tier.container) : cn("px-6 py-4", showDivider && "border-b border-border")
+        )}
+      >
+        {tier && <TierParticles info={info} />}
+
+        <span className={cn("font-bold text-[15px]", tier?.lightText ?? "text-foreground")}>{rankLabel}</span>
+
+        <div className="flex items-center gap-3 min-w-0 overflow-hidden">
+          <button
+            onClick={() => setOpen(true)}
+            className={cn(
+              "w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 hover:opacity-80 transition-opacity cursor-pointer",
+              tier?.avatar ?? "bg-primary/15 text-primary ring-2 ring-background"
+            )}
+            aria-label={`Profil de ${stats.player.first_name} ${stats.player.last_name}`}
+          >
+            {getInitials(stats.player.first_name, stats.player.last_name)}
+          </button>
+          <span className={cn("font-bold text-[15px] flex-1 min-w-0 truncate", tier?.lightText ?? "text-foreground")}>
+            {stats.player.first_name} {stats.player.last_name}
+          </span>
+          <StreakBadge streak={streak} />
+        </div>
+
+        <span className={cn("text-center font-bold text-[15px]", tier?.lightText ?? "text-foreground")}>{stats.wins}</span>
+        <span className={cn("text-center text-[15px]", tier?.secondaryText ?? "text-muted-foreground")}>{stats.losses}</span>
+        <span className={cn("text-center text-[15px]", tier?.lightText ?? "text-foreground")}>{stats.matches_played}</span>
+        <span className={cn("text-center text-[15px]", tier?.lightText ?? "text-foreground")}>{stats.win_rate.toFixed(1)}%</span>
+
+        <div className="flex justify-center">
+          {tier?.eloPill ? (
+            <span className={cn("inline-flex px-3 py-1 rounded-full font-bold text-[13px]", tier.eloPill)}>{stats.elo}</span>
+          ) : (
+            <EloBadge elo={stats.elo} />
+          )}
+        </div>
+      </div>
       <PlayerProfileDialog
         stats={stats}
         rank={rank}
@@ -136,53 +160,55 @@ function PlayerRow({ stats, rank, matches }: { stats: PlayerStats; rank: number;
 
 const PAGE_SIZE = 7
 
-export function PlayerRankingsTable({ playerStats, matches }: { playerStats: PlayerStats[]; matches: Match[] }) {
+export function PlayerRankingsTable({ playerStats, matches, streaks }: { playerStats: PlayerStats[]; matches: Match[]; streaks: Record<string, number> }) {
   const [showAll, setShowAll] = useState(false)
   const visible = showAll ? playerStats : playerStats.slice(0, PAGE_SIZE)
 
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow className="border-b-0 hover:bg-transparent">
-            <TableHead className="w-20 text-xs tracking-widest uppercase text-muted-foreground font-semibold py-4 pl-6">Rang</TableHead>
-            <TableHead className="w-1/2 text-xs tracking-widest uppercase text-muted-foreground font-semibold">Joueur</TableHead>
-            <TableHead className="text-xs tracking-widest uppercase text-muted-foreground font-semibold text-center">Victoires</TableHead>
-            <TableHead className="text-xs tracking-widest uppercase text-muted-foreground font-semibold text-center">Défaites</TableHead>
-            <TableHead className="text-xs tracking-widest uppercase text-muted-foreground font-semibold text-center">Total Matchs</TableHead>
-            <TableHead className="text-xs tracking-widest uppercase text-muted-foreground font-semibold text-center">Ratio</TableHead>
-            <TableHead className="text-xs tracking-widest uppercase text-muted-foreground font-semibold text-center">
-              <span className="inline-flex items-center justify-center gap-1">
-                ELO
-                <EloInfoDialog />
-              </span>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {visible.length === 0
-            ? Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i} className="h-16">
-                  <TableCell className="pl-6 w-20"><div className="h-4 w-6 rounded bg-muted animate-pulse" /></TableCell>
-                  <TableCell className="w-1/2">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-muted animate-pulse ring-2 ring-background" />
-                      <div className="h-4 w-32 rounded bg-muted animate-pulse" />
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-center"><div className="h-4 w-6 rounded bg-muted animate-pulse mx-auto" /></TableCell>
-                  <TableCell className="text-center"><div className="h-4 w-6 rounded bg-muted animate-pulse mx-auto" /></TableCell>
-                  <TableCell className="text-center"><div className="h-4 w-6 rounded bg-muted animate-pulse mx-auto" /></TableCell>
-                  <TableCell className="text-center"><div className="h-4 w-12 rounded bg-muted animate-pulse mx-auto" /></TableCell>
-                  <TableCell className="text-center"><div className="h-6 w-14 rounded-full bg-muted animate-pulse mx-auto" /></TableCell>
-                </TableRow>
-              ))
-            : visible.map((stats, i) => (
-                <PlayerRow key={stats.player.id} stats={stats} rank={i + 1} matches={matches} />
-              ))
-          }
-        </TableBody>
-      </Table>
+      {/* Header */}
+      <div className={cn("grid gap-4 items-center px-6 py-4 border-b border-border", GRID_COLS)}>
+        <span className="text-xs tracking-widest uppercase text-muted-foreground font-semibold">Rang</span>
+        <span className="text-xs tracking-widest uppercase text-muted-foreground font-semibold">Joueur</span>
+        <span className="text-xs tracking-widest uppercase text-muted-foreground font-semibold text-center">Victoires</span>
+        <span className="text-xs tracking-widest uppercase text-muted-foreground font-semibold text-center">Défaites</span>
+        <span className="text-xs tracking-widest uppercase text-muted-foreground font-semibold text-center">Total Matchs</span>
+        <span className="text-xs tracking-widest uppercase text-muted-foreground font-semibold text-center">Ratio</span>
+        <span className="text-xs tracking-widest uppercase text-muted-foreground font-semibold text-center">
+          <span className="inline-flex items-center justify-center gap-1">
+            ELO
+            <EloInfoDialog />
+          </span>
+        </span>
+      </div>
+
+      {/* Rows */}
+      {visible.length === 0
+        ? Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className={cn("grid gap-4 items-center px-6 py-4", GRID_COLS, i < 4 && "border-b border-border")}>
+              <div className="h-4 w-6 rounded bg-muted animate-pulse" />
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-muted animate-pulse ring-2 ring-background" />
+                <div className="h-4 w-32 rounded bg-muted animate-pulse" />
+              </div>
+              <div className="h-4 w-6 rounded bg-muted animate-pulse mx-auto" />
+              <div className="h-4 w-6 rounded bg-muted animate-pulse mx-auto" />
+              <div className="h-4 w-6 rounded bg-muted animate-pulse mx-auto" />
+              <div className="h-4 w-12 rounded bg-muted animate-pulse mx-auto" />
+              <div className="h-6 w-14 rounded-full bg-muted animate-pulse mx-auto" />
+            </div>
+          ))
+        : visible.map((stats, i) => (
+            <PlayerRow
+              key={stats.player.id}
+              stats={stats}
+              rank={i + 1}
+              matches={matches}
+              streak={streaks[stats.player.id] ?? 0}
+              showDivider={i < visible.length - 1}
+            />
+          ))
+      }
 
       {playerStats.length > PAGE_SIZE && (
         <button

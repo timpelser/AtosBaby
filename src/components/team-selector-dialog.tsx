@@ -41,7 +41,7 @@ function computeBalanced(players: [Player, Player, Player, Player], eloMap: Map<
 function PlayerCard({ player, eloMap, color }: { player: Player; eloMap: Map<string, number>; color: "blue" | "orange" }) {
   const isBlue = color === "blue"
   const avatarCls = isBlue
-    ? "bg-blue-100 text-blue-600"
+    ? "bg-sky-100 text-sky-600"
     : "bg-orange-100 text-orange-600"
 
   return (
@@ -68,13 +68,13 @@ function TeamDisplay({ result, eloMap, showElo }: { result: TeamResult; eloMap: 
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
         {/* Team A */}
-        <div className="rounded-xl bg-blue-50 border border-blue-100 p-4 space-y-3">
-          <p className="text-xs font-semibold tracking-widest text-blue-600 uppercase">Équipe A</p>
+        <div className="rounded-xl bg-sky-50 border border-sky-100 p-4 space-y-3">
+          <p className="text-xs font-semibold tracking-widest text-sky-600 uppercase">Équipe A</p>
           <div className="space-y-2.5">
             {result.teamA.map((p) => <PlayerCard key={p.id} player={p} eloMap={eloMap} color="blue" />)}
           </div>
           {showElo && (
-            <p className="text-xs font-bold text-blue-600 pt-1 border-t border-blue-100">
+            <p className="text-xs font-bold text-sky-600 pt-1 border-t border-sky-100">
               Moy. ELO : {Math.round(avgA)}
             </p>
           )}
