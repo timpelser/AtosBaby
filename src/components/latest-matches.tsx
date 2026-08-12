@@ -262,7 +262,7 @@ export function LatestMatches({ matches }: { matches: Match[] }) {
 
         {/* Rows */}
         {visible.map((match, i) => (
-          <div key={match.id} className={`flex items-center py-5 px-6 hover:bg-muted/30 transition-colors ${i < visible.length - 1 || !matches.length ? "border-b border-border" : ""}`}>
+          <div key={match.id} data-testid="match-row" className={`flex items-center py-5 px-6 hover:bg-muted/30 transition-colors ${i < visible.length - 1 || !matches.length ? "border-b border-border" : ""}`}>
             <div className="w-44 shrink-0 text-sm text-muted-foreground">
               {formatDate(match.played_at)}
             </div>

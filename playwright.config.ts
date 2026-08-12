@@ -14,14 +14,16 @@ const BASE_URL = `http://localhost:${PORT}`
 export default defineConfig({
   testDir: "./e2e/tests",
   globalSetup: "./e2e/global-setup.ts",
-  fullyParallel: true,
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  // All tests share one Neon branch (see e2e/global-setup.ts) — keep workers
-  // modest so ELO/leaderboard-shaped tests that read global aggregates don't
-  // race each other. Bump this once the suite is split into projects that
-  // isolate by dedicated player namespaces.
-  workers: process.env.CI ? 2 : undefined,
+  // Single worker, always. This isn't just about flakiness: recomputeAllElos
+  // (triggered by admin match-deletion and the decay cron) rewrites EVERY
+  // player's ELO in one pass with no locking — two of those running
+  // concurrently against the shared `e2e` branch could genuinely corrupt
+  // each other's writes, not just produce a flaky assertion. Revisit once
+  // the suite moves to per-worker Neon branches (see e2e/README.md).
+  workers: 1,
   reporter: process.env.CI ? [["html", { open: "never" }], ["github"]] : "list",
 
   use: {

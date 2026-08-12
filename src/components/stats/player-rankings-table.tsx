@@ -107,6 +107,7 @@ function PlayerRow({ stats, rank, matches, streak, showDivider }: { stats: Playe
   return (
     <>
       <div
+        data-testid="player-row"
         className={cn(
           "grid gap-4 items-center",
           GRID_COLS,

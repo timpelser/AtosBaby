@@ -38,7 +38,7 @@ export function AdminLogo() {
 
   return (
     <>
-      <div className="flex flex-col cursor-default select-none" onClick={onLogoClick}>
+      <div className="flex flex-col cursor-default select-none" onClick={onLogoClick} data-testid="admin-logo">
         <span
           className="text-xl sm:text-3xl tracking-tight whitespace-nowrap"
           style={{ color: "black" }}
