@@ -23,7 +23,11 @@ every run.
 - **admin.spec.ts** — 5-click unlock, wrong-password rejection, logout,
   match deletion.
 - **cron-decay.spec.ts** — bearer auth, correct -10 application, leaves
-  active players alone, idempotent within the same week.
+  active players alone, idempotent within the same completed week, and a
+  direct regression test that the job evaluates the most recently
+  *completed* week rather than "whichever week `now()` currently falls
+  in" (see the 2026-08-10 incident: a late cron run crossed a week
+  boundary and wrongly decayed all 22 active players).
 - **elo-accuracy.spec.ts** — the core suite: drives real matches through the
   UI and compares the DB's `elo_before`/`elo_after` against an independently
   reimplemented formula (`helpers/elo.ts`, never imported from

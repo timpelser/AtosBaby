@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/elo-decay",
-      "schedule": "59 23 * * 0"
+      "schedule": "0 2 * * 1"
     }
   ]
 }
