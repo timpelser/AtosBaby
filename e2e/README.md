@@ -91,8 +91,6 @@ with prod automatically:
 2. Immediately truncate all tables on `e2e-seed` again so it goes back to
    zero rows (`TRUNCATE elo_decay_events, match_players, matches, players
    RESTART IDENTITY CASCADE;`).
-3. Update `db/schema.sql` in the repo root to match, in the same PR as the
-   schema change.
 
 ## Writing new tests
 
