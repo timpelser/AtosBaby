@@ -111,6 +111,9 @@ test.describe("latest matches", () => {
 
     await row.getByTitle("Supprimer ce match").click()
     await page.getByRole("dialog").getByRole("button", { name: "Supprimer" }).click()
-    await expect(row).toHaveCount(0)
+    // deleteMatch triggers a full recomputeAllElos over every match in the
+    // DB, sequentially — as the run accumulates matches from earlier specs
+    // this can take a while, especially over CI's network path to Neon.
+    await expect(row).toHaveCount(0, { timeout: 20_000 })
   })
 })

@@ -221,7 +221,10 @@ test.describe("ELO correctness", () => {
     await expect(targetRow).toHaveCount(1)
     await targetRow.getByTitle("Supprimer ce match").click()
     await page.getByRole("dialog").getByRole("button", { name: "Supprimer" }).click()
-    await expect(targetRow).toHaveCount(0)
+    // deleteMatch triggers a full recomputeAllElos over every match in the
+    // DB, sequentially — as the run accumulates matches from earlier specs
+    // this can take a while, especially over CI's network path to Neon.
+    await expect(targetRow).toHaveCount(0, { timeout: 20_000 })
 
     for (const id of [id1, id2, id3, id4]) {
       const after = await eloAfterFor(match3.id, id)
