@@ -734,19 +734,17 @@ export function PlayerProfileDialog({
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col">
           <div className="px-4 pt-3">
-            <TabsList className="w-full grid grid-cols-4 text-xs">
-              <TabsTrigger value="matches" className="px-1">Derniers matchs</TabsTrigger>
-              <TabsTrigger value="elo" className="px-1">Historique ELO</TabsTrigger>
-              <TabsTrigger value="rivals" className="px-1">Rivalités</TabsTrigger>
-              <TabsTrigger value="badges" className="px-1">Trophées</TabsTrigger>
+            <TabsList className="w-full justify-start overflow-x-auto">
+              <TabsTrigger value="matches" className="shrink-0 px-3">Derniers matchs</TabsTrigger>
+              <TabsTrigger value="elo" className="shrink-0 px-3">Historique ELO</TabsTrigger>
+              <TabsTrigger value="rivals" className="shrink-0 px-3">Rivalités</TabsTrigger>
+              <TabsTrigger value="badges" className="shrink-0 px-3">Trophées</TabsTrigger>
             </TabsList>
           </div>
 
-          <div className="px-4 pb-4 pt-3">
+          <div className="max-h-[60vh] overflow-y-auto overflow-x-hidden px-4 pb-4 pt-3">
             <TabsContent value="matches">
-              <div className="max-h-[60vh] overflow-y-auto overflow-x-hidden">
-                <MatchesTab matches={playerMatches} playerId={stats.player.id} />
-              </div>
+              <MatchesTab matches={playerMatches} playerId={stats.player.id} />
             </TabsContent>
 
             <TabsContent value="elo">
