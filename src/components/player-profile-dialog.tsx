@@ -597,9 +597,12 @@ function BadgeCell({ badge }: { badge: BadgeStatus }) {
         <p className={`text-[10px] text-center leading-tight ${badge.earned ? "text-foreground font-medium" : "text-muted-foreground"}`}>
           {badge.name}
         </p>
-        {!badge.earned && badge.progress && (
+        {badge.earned && badge.earnedAt && (
+          <p className="text-[9px] text-muted-foreground/70">{shortDate(badge.earnedAt)}</p>
+        )}
+        {!badge.earned && (
           <p className="text-[9px] text-muted-foreground/70 tabular-nums">
-            {Math.min(badge.progress.current, badge.progress.target)}/{badge.progress.target}
+            {badge.progress ? `${Math.min(badge.progress.current, badge.progress.target)}/${badge.progress.target}` : "—"}
           </p>
         )}
       </PopoverTrigger>
