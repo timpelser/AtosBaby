@@ -3,6 +3,7 @@
 import { sql } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import type { EloHistoryPoint, RivalryStat } from "@/lib/types"
+import { UNDO_WINDOW_MINUTES } from "@/lib/constants"
 
 // Matches before this date used conservative K values (players didn't know ELO existed)
 const ELO_ERA_CUTOFF = new Date("2026-06-13")
@@ -191,7 +192,7 @@ export async function recomputeAllElos(): Promise<void> {
   )
 }
 
-export async function saveMatch(input: SaveMatchInput): Promise<void> {
+export async function saveMatch(input: SaveMatchInput): Promise<{ matchId: string }> {
   const [teamAAttackerId, teamADefenderId, teamBAttackerId, teamBDefenderId] = await Promise.all([
     upsertPlayer(input.teamA.attacker),
     upsertPlayer(input.teamA.defender),
@@ -222,6 +223,8 @@ export async function saveMatch(input: SaveMatchInput): Promise<void> {
   )
 
   revalidatePath("/")
+
+  return { matchId }
 }
 
 export async function getPlayerEloHistory(playerId: string): Promise<EloHistoryPoint[]> {
@@ -319,4 +322,33 @@ export async function deleteMatch(matchId: string, password: string): Promise<vo
   await sql`DELETE FROM matches WHERE id = ${matchId}`
   await recomputeAllElos()
   revalidatePath("/")
+}
+
+export type UndoMatchResult = { ok: true } | { ok: false; reason: "not_found" | "expired" }
+
+/**
+ * Self-serve undo: anyone can retract a match with no admin password, but only
+ * within a short window after it was logged. The window is enforced here in
+ * SQL against the match's own `played_at` (== submission time — the UI never
+ * lets you backdate a match) so a stale client clock can't extend it; the
+ * DELETE and the freshness check happen in one statement to avoid a race
+ * between "is it still fresh" and "delete it". match_players rows cascade
+ * automatically (ON DELETE CASCADE), same as deleteMatch relies on.
+ */
+export async function undoMatch(matchId: string): Promise<UndoMatchResult> {
+  const deleted = await sql`
+    DELETE FROM matches
+    WHERE id = ${matchId}::uuid
+      AND played_at >= now() - (${UNDO_WINDOW_MINUTES} * interval '1 minute')
+    RETURNING id
+  `
+
+  if (deleted.length === 0) {
+    const stillExists = await sql`SELECT id FROM matches WHERE id = ${matchId}::uuid`
+    return { ok: false, reason: stillExists.length === 0 ? "not_found" : "expired" }
+  }
+
+  await recomputeAllElos()
+  revalidatePath("/")
+  return { ok: true }
 }

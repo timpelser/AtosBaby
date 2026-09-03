@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 
 import { AddMatchDialog } from "@/components/add-match-dialog"
 import { TeamSelectorDialog } from "@/components/team-selector-dialog"
+import { UndoMatchBanner } from "@/components/undo-match-banner"
 import { TopPlayersPodium } from "@/components/stats/top-players-podium"
 import { PlayerRankingsTable } from "@/components/stats/player-rankings-table"
 import { PlayerRankingsTableMobile } from "@/components/stats/player-rankings-table-mobile"
@@ -57,6 +58,8 @@ export default async function Home() {
             <div className="sm:hidden"><LatestMatchesMobile matches={matches} /></div>
           </section>
         </main>
+
+        <UndoMatchBanner />
       </div>
     </AdminProvider>
   )

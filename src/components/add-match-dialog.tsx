@@ -14,6 +14,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { PlayerCombobox } from "@/components/player-combobox"
 import { saveMatch } from "@/lib/actions"
+import { setUndoableMatch } from "@/lib/undo-match-store"
 import type { Player } from "@/lib/types"
 
 type TeamState = {
@@ -79,7 +80,8 @@ export function AddMatchDialog({ players }: { players: Player[] }) {
     e.preventDefault()
     if (scoreInvalid || playersInvalid || isPending) return
     setIsPending(true)
-    await saveMatch({ teamA: form.teamA, teamB: form.teamB, scoreA: form.scoreA, scoreB: form.scoreB })
+    const { matchId } = await saveMatch({ teamA: form.teamA, teamB: form.teamB, scoreA: form.scoreA, scoreB: form.scoreB })
+    setUndoableMatch(matchId)
     setIsPending(false)
     setOpen(false)
     setForm(EMPTY_FORM)
@@ -100,6 +102,10 @@ export function AddMatchDialog({ players }: { players: Player[] }) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <div className="flex items-center gap-2 w-full sm:w-auto">
+        <DialogTrigger render={<Button size="lg" className="flex-1 sm:flex-none h-10 px-5 text-base bg-sky-600 hover:bg-sky-700" />}>
+          <PlusIcon className="size-5" />
+          Ajouter un match
+        </DialogTrigger>
         {isAdmin && (
           <button
             onClick={logout}
@@ -109,10 +115,6 @@ export function AddMatchDialog({ players }: { players: Player[] }) {
             <LockIcon className="size-4" />
           </button>
         )}
-        <DialogTrigger render={<Button size="lg" className="flex-1 sm:flex-none h-10 px-5 text-base bg-sky-600 hover:bg-sky-700" />}>
-          <PlusIcon className="size-5" />
-          Ajouter un match
-        </DialogTrigger>
       </div>
       {isAdmin && (
         <Button
