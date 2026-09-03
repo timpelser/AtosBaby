@@ -4,6 +4,7 @@ import { sql } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import type { EloHistoryPoint, RivalryStat } from "@/lib/types"
 import { UNDO_WINDOW_MINUTES } from "@/lib/constants"
+import { computeBadges, type BadgeStatus, type BadgeMatch, type BadgeMatchMember, type BadgeDecay } from "@/lib/badges"
 
 // Matches before this date used conservative K values (players didn't know ELO existed)
 const ELO_ERA_CUTOFF = new Date("2026-06-13")
@@ -371,6 +372,65 @@ export async function getPlayerRivalries(playerId: string): Promise<RivalryStat[
     losses: Number(r.losses),
     win_rate: Number(r.matches_played) > 0 ? (Number(r.wins) / Number(r.matches_played)) * 100 : 0,
   }))
+}
+
+export async function getPlayerBadges(playerId: string): Promise<BadgeStatus[]> {
+  const [matchRows, decayRows] = await Promise.all([
+    sql`
+      SELECT
+        m.id::text AS match_id, m.played_at, m.score_team_a, m.score_team_b,
+        mp.player_id::text AS player_id, mp.team, mp.position, mp.elo_before, mp.elo_after
+      FROM matches m
+      JOIN match_players mp ON mp.match_id = m.id
+      ORDER BY m.played_at ASC
+    `,
+    sql`
+      SELECT player_id::text, applied_at, elo_after
+      FROM elo_decay_events
+      ORDER BY applied_at ASC
+    `,
+  ])
+
+  // Group the flat (one row per player per match) rows back into one
+  // BadgeMatch per match_id — badges.ts wants the full 4-player picture of
+  // each match, same shape recomputeAllElos works with.
+  const matchesById = new Map<string, BadgeMatch>()
+  for (const row of matchRows) {
+    const id = row.match_id as string
+    let match = matchesById.get(id)
+    if (!match) {
+      match = {
+        id,
+        playedAt: row.played_at as string,
+        scoreA: Number(row.score_team_a),
+        scoreB: Number(row.score_team_b),
+        members: [],
+      }
+      matchesById.set(id, match)
+    }
+    const member: BadgeMatchMember = {
+      playerId: row.player_id as string,
+      team: row.team as "A" | "B",
+      position: row.position as "attack" | "defense",
+      // Historical rows always have both set by recomputeAllElos; 1000 is
+      // just a defensive fallback, never expected to be hit in practice.
+      eloBefore: row.elo_before != null ? Number(row.elo_before) : 1000,
+      eloAfter: row.elo_after != null ? Number(row.elo_after) : 1000,
+    }
+    match.members.push(member)
+  }
+
+  const decays: BadgeDecay[] = decayRows.map(r => ({
+    playerId: r.player_id as string,
+    appliedAt: r.applied_at as string,
+    eloAfter: r.elo_after != null ? Number(r.elo_after) : null,
+  }))
+
+  return computeBadges({
+    playerId,
+    matches: Array.from(matchesById.values()),
+    decays,
+  })
 }
 
 export async function verifyAdminPassword(password: string): Promise<boolean> {

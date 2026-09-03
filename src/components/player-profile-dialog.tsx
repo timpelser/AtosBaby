@@ -1,11 +1,19 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { XIcon } from "lucide-react"
+import {
+  XIcon, LockIcon,
+  Flag, Footprints, Layers, ShieldCheck, Crown, Star, Trophy, Medal,
+  Flame, Zap, Frown, Swords, ThumbsDown, Skull, Target, Heart, Mountain,
+  TrendingDown, Gem, Shield, Crosshair, Repeat2, Users, RotateCcw, Award, Moon,
+  type LucideIcon,
+} from "lucide-react"
 import type { Match, PlayerStats, EloHistoryPoint, RivalryStat } from "@/lib/types"
+import type { BadgeStatus } from "@/lib/badges"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { getPlayerEloHistory, getPlayerRivalries } from "@/lib/actions"
+import { getPlayerEloHistory, getPlayerRivalries, getPlayerBadges } from "@/lib/actions"
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -533,6 +541,114 @@ function MatchesTab({ matches, playerId }: { matches: Match[]; playerId: string 
   )
 }
 
+// ─── Trophées tab ───────────────────────────────────────────────────────────
+
+const BADGE_VISUALS: Record<string, { icon: LucideIcon; cls: string }> = {
+  "premier-match": { icon: Flag, cls: "bg-sky-100 text-sky-600 dark:bg-sky-900/20 dark:text-sky-400" },
+  "habitue": { icon: Footprints, cls: "bg-sky-100 text-sky-600 dark:bg-sky-900/20 dark:text-sky-400" },
+  "pilier": { icon: Layers, cls: "bg-sky-100 text-sky-600 dark:bg-sky-900/20 dark:text-sky-400" },
+  "veteran": { icon: ShieldCheck, cls: "bg-sky-100 text-sky-600 dark:bg-sky-900/20 dark:text-sky-400" },
+  "legende": { icon: Crown, cls: "bg-amber-100 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400" },
+  "premiere-victoire": { icon: Star, cls: "bg-green-100 text-green-600 dark:bg-green-900/20 dark:text-green-400" },
+  "chasseur-de-trophees": { icon: Trophy, cls: "bg-green-100 text-green-600 dark:bg-green-900/20 dark:text-green-400" },
+  "centurion": { icon: Medal, cls: "bg-green-100 text-green-600 dark:bg-green-900/20 dark:text-green-400" },
+  "en-feu": { icon: Flame, cls: "bg-orange-100 text-orange-500 dark:bg-orange-900/20 dark:text-orange-400" },
+  "sur-une-lancee": { icon: Flame, cls: "bg-red-100 text-red-500 dark:bg-red-900/20 dark:text-red-400" },
+  "intouchable": { icon: Zap, cls: "bg-purple-100 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400" },
+  "traversee-du-desert": { icon: Frown, cls: "bg-muted text-muted-foreground" },
+  "no-mercy": { icon: Swords, cls: "bg-red-100 text-red-500 dark:bg-red-900/20 dark:text-red-400" },
+  "super-loser": { icon: ThumbsDown, cls: "bg-muted text-muted-foreground" },
+  "le-bourreau": { icon: Skull, cls: "bg-red-100 text-red-500 dark:bg-red-900/20 dark:text-red-400" },
+  "sur-le-fil": { icon: Target, cls: "bg-sky-100 text-sky-600 dark:bg-sky-900/20 dark:text-sky-400" },
+  "coeur-brise": { icon: Heart, cls: "bg-red-100 text-red-500 dark:bg-red-900/20 dark:text-red-400" },
+  "chasseur-de-geants": { icon: Mountain, cls: "bg-teal-100 text-teal-600 dark:bg-teal-900/20 dark:text-teal-400" },
+  "regicide": { icon: Crown, cls: "bg-red-100 text-red-500 dark:bg-red-900/20 dark:text-red-400" },
+  "chute-libre": { icon: TrendingDown, cls: "bg-muted text-muted-foreground" },
+  "elite": { icon: Gem, cls: "bg-purple-100 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400" },
+  "muraille": { icon: Shield, cls: "bg-sky-100 text-sky-600 dark:bg-sky-900/20 dark:text-sky-400" },
+  "buteur": { icon: Crosshair, cls: "bg-orange-100 text-orange-500 dark:bg-orange-900/20 dark:text-orange-400" },
+  "polyvalent": { icon: Repeat2, cls: "bg-teal-100 text-teal-600 dark:bg-teal-900/20 dark:text-teal-400" },
+  "nemesis": { icon: Users, cls: "bg-pink-100 text-pink-600 dark:bg-pink-900/20 dark:text-pink-400" },
+  "bete-noire": { icon: Skull, cls: "bg-pink-100 text-pink-600 dark:bg-pink-900/20 dark:text-pink-400" },
+  "revanche": { icon: RotateCcw, cls: "bg-green-100 text-green-600 dark:bg-green-900/20 dark:text-green-400" },
+  "champion": { icon: Trophy, cls: "bg-amber-100 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400" },
+  "sur-le-podium": { icon: Award, cls: "bg-amber-100 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400" },
+  "oiseau-de-nuit": { icon: Moon, cls: "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400" },
+}
+
+function BadgeCell({ badge }: { badge: BadgeStatus }) {
+  const visual = BADGE_VISUALS[badge.id]
+  const Icon = visual.icon
+
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={<button className="flex flex-col items-center gap-1 p-1.5 rounded-xl transition-colors hover:bg-muted/50" />}
+      >
+        <div
+          className={
+            badge.earned
+              ? `w-11 h-11 rounded-full flex items-center justify-center ${visual.cls}`
+              : "w-11 h-11 rounded-full flex items-center justify-center border-2 border-dashed border-border text-muted-foreground/50"
+          }
+        >
+          {badge.earned ? <Icon className="size-5" /> : <LockIcon className="size-4" />}
+        </div>
+        <p className={`text-[10px] text-center leading-tight ${badge.earned ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+          {badge.name}
+        </p>
+        {!badge.earned && badge.progress && (
+          <p className="text-[9px] text-muted-foreground/70 tabular-nums">
+            {Math.min(badge.progress.current, badge.progress.target)}/{badge.progress.target}
+          </p>
+        )}
+      </PopoverTrigger>
+      <PopoverContent className="w-56">
+        <p className="text-sm font-bold text-foreground">{badge.name}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{badge.description}</p>
+        {badge.earned && badge.earnedAt && (
+          <p className="text-[11px] text-muted-foreground mt-1.5">Débloqué le {longDate(badge.earnedAt)}</p>
+        )}
+        {!badge.earned && badge.progress && (
+          <p className="text-[11px] text-muted-foreground mt-1.5">
+            Progression : {Math.min(badge.progress.current, badge.progress.target)}/{badge.progress.target}
+          </p>
+        )}
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function BadgesTab({ badges, loading }: { badges: BadgeStatus[] | null; loading: boolean }) {
+  if (loading || badges === null) {
+    return (
+      <div className="grid grid-cols-4 gap-2">
+        {Array.from({ length: 12 }).map((_, i) => (
+          <div key={i} className="flex flex-col items-center gap-1.5 p-1.5">
+            <div className="w-11 h-11 rounded-full bg-muted animate-pulse" />
+            <div className="h-2 w-10 rounded bg-muted animate-pulse" />
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  const earnedCount = badges.filter(b => b.earned).length
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-muted-foreground mb-3">
+        {earnedCount}/{badges.length} débloqués
+      </p>
+      <div className="grid grid-cols-4 gap-1">
+        {badges.map(badge => (
+          <BadgeCell key={badge.id} badge={badge} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ─── Main dialog ────────────────────────────────────────────────────────────
 
 export function PlayerProfileDialog({
@@ -551,9 +667,10 @@ export function PlayerProfileDialog({
   // null = not yet fetched / loading; array = done
   const [eloHistory, setEloHistory] = useState<EloHistoryPoint[] | null>(null)
   const [rivalries, setRivalries] = useState<RivalryStat[] | null>(null)
+  const [badges, setBadges] = useState<BadgeStatus[] | null>(null)
   const [activeTab, setActiveTab] = useState("matches")
   // track which tabs have already been fetched for this open session
-  const fetched = useRef({ elo: false, rivals: false })
+  const fetched = useRef({ elo: false, rivals: false, badges: false })
 
   // Reset state every time the dialog opens
   useEffect(() => {
@@ -561,7 +678,8 @@ export function PlayerProfileDialog({
     setActiveTab("matches")
     setEloHistory(null)
     setRivalries(null)
-    fetched.current = { elo: false, rivals: false }
+    setBadges(null)
+    fetched.current = { elo: false, rivals: false, badges: false }
   }, [open])
 
   // Lazy-fetch only when the user visits a tab for the first time
@@ -574,6 +692,10 @@ export function PlayerProfileDialog({
     if (tab === "rivals" && !fetched.current.rivals) {
       fetched.current.rivals = true
       getPlayerRivalries(stats.player.id).then(setRivalries)
+    }
+    if (tab === "badges" && !fetched.current.badges) {
+      fetched.current.badges = true
+      getPlayerBadges(stats.player.id).then(setBadges)
     }
   }, [stats.player.id])
 
@@ -609,16 +731,19 @@ export function PlayerProfileDialog({
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col">
           <div className="px-4 pt-3">
-            <TabsList className="w-full grid grid-cols-3">
-              <TabsTrigger value="matches">Derniers matchs</TabsTrigger>
-              <TabsTrigger value="elo">Historique ELO</TabsTrigger>
-              <TabsTrigger value="rivals">Rivalités</TabsTrigger>
+            <TabsList className="w-full grid grid-cols-4 text-xs">
+              <TabsTrigger value="matches" className="px-1">Derniers matchs</TabsTrigger>
+              <TabsTrigger value="elo" className="px-1">Historique ELO</TabsTrigger>
+              <TabsTrigger value="rivals" className="px-1">Rivalités</TabsTrigger>
+              <TabsTrigger value="badges" className="px-1">Trophées</TabsTrigger>
             </TabsList>
           </div>
 
-          <div className="max-h-[60vh] overflow-y-auto px-4 pb-4 pt-3">
+          <div className="px-4 pb-4 pt-3">
             <TabsContent value="matches">
-              <MatchesTab matches={playerMatches} playerId={stats.player.id} />
+              <div className="max-h-[60vh] overflow-y-auto overflow-x-hidden">
+                <MatchesTab matches={playerMatches} playerId={stats.player.id} />
+              </div>
             </TabsContent>
 
             <TabsContent value="elo">
@@ -646,6 +771,10 @@ export function PlayerProfileDialog({
                 playerFirst={first_name}
                 playerLast={last_name}
               />
+            </TabsContent>
+
+            <TabsContent value="badges">
+              <BadgesTab badges={badges} loading={badges === null} />
             </TabsContent>
           </div>
         </Tabs>
