@@ -25,15 +25,15 @@ function EloInfoDialog() {
         </DialogHeader>
         <div className="space-y-4 text-sm">
           <p className="text-muted-foreground">
-            Le score ELO tient compte de la force de vos adversaires. Battre une équipe forte rapporte plus de points que battre une équipe faible — et perdre contre eux coûte peu.
+            Le score ELO tient compte de la force de vos adversaires — et de votre propre niveau au sein de l&apos;équipe. Battre une équipe forte rapporte plus de points que battre une équipe faible, et à résultat égal, le joueur le moins bien classé de l&apos;équipe gagne (ou perd) plus de points que son coéquipier mieux classé.
           </p>
           <div>
             <p className="font-semibold text-foreground mb-2">Formule</p>
             <div className="rounded-lg bg-muted px-4 py-3 space-y-1 font-mono text-xs">
-              <p>moy. équipe = (ELO₁ + ELO₂) / 2</p>
+              <p>moy. adverse = (ELO adv. 1 + ELO adv. 2) / 2</p>
               <p>résultat = 1 (victoire) ou 0 (défaite)</p>
-              <p>K = 64 pour les 10 premières parties, puis 32</p>
-              <p>E = 1 / (1 + 10^((moy. adverse − moy. équipe) / 400))</p>
+              <p>K = 94 pour les 10 premières parties, puis 64</p>
+              <p>E = 1 / (1 + 10^((moy. adverse − votre ELO) / 400))</p>
               <p>ELO += K × (résultat − E)</p>
             </div>
           </div>
@@ -41,25 +41,24 @@ function EloInfoDialog() {
             <p className="font-semibold text-foreground mb-2">Exemple</p>
             <div className="rounded-lg border border-border px-4 py-3 space-y-2 text-xs">
               <p className="text-muted-foreground">
-                Alice <span className="text-foreground">(1200)</span> + Bob <span className="text-foreground">(1000)</span>
+                Alice <span className="text-foreground">(899)</span> + Bob <span className="text-foreground">(1135)</span>
                 <span className="mx-1.5 font-semibold text-foreground">vs</span>
-                Carlos <span className="text-foreground">(900)</span> + Dana <span className="text-foreground">(800)</span>
+                Carlos <span className="text-foreground">(1197)</span> + Dana <span className="text-foreground">(796)</span>
               </p>
               <p className="text-muted-foreground">
-                Moy. A : <span className="text-foreground font-medium">1100</span> · Moy. B : <span className="text-foreground font-medium">850</span>
-                <span className="mx-1.5">→</span>
-                Victoire A attendue : <span className="text-foreground font-semibold">81%</span>
+                Moy. équipe A : <span className="text-foreground font-medium">1017</span> · Moy. équipe B : <span className="text-foreground font-medium">997</span>
               </p>
               <div className="border-t border-border pt-2 space-y-1">
                 <p>
-                  <span className="text-green-600 font-semibold">Si A gagne</span>
-                  <span className="text-muted-foreground mx-1">→</span>
-                  Alice & Bob <span className="text-green-600 font-semibold">+6 pts</span> chacun
-                </p>
-                <p>
                   <span className="text-orange-500 font-semibold">Si B gagne</span>
                   <span className="text-muted-foreground mx-1">→</span>
-                  Carlos & Dana <span className="text-green-600 font-semibold">+26 pts</span> · Alice & Bob <span className="text-red-500 font-semibold">−26 pts</span>
+                  Carlos <span className="text-green-600 font-semibold">+17</span> · Dana <span className="text-green-600 font-semibold">+50</span>
+                </p>
+                <p className="text-muted-foreground">
+                  Même victoire, même équipe — mais Dana (796) était bien moins favorisée que Carlos (1197, déjà au-dessus de l&apos;adversaire), donc elle gagne plus.
+                </p>
+                <p>
+                  <span className="text-muted-foreground">Côté perdant :</span> Alice <span className="text-red-500 font-semibold">−23</span> · Bob <span className="text-red-500 font-semibold">−44</span>
                 </p>
               </div>
             </div>

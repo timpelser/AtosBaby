@@ -100,7 +100,74 @@ test.describe("ELO correctness", () => {
     // gained for an already-expected win — this is what "ELO accounts for
     // opponent strength" (per the app's own info dialog) actually means.
     expect(expected.teamB[0].delta).toBeGreaterThan(50)
-    expect(expected.teamA[0].delta).toBe(-expected.teamB[0].delta) // symmetric on a 2-team match
+    // Both teams here are internally rating-symmetric (each teammate pair
+    // shares one elo), so this still holds under the per-player formula too —
+    // it is NOT a general law once teammates' own ratings differ, see the
+    // "teammates with very different ratings..." test below for that case.
+    expect(expected.teamA[0].delta).toBe(-expected.teamB[0].delta)
+  })
+
+  test("teammates with very different ratings gain/lose different amounts for the same team result", async ({ page }) => {
+    // Reproduces the real scenario that prompted this: two teammates who win
+    // (or lose) together used to get the *identical* ELO delta no matter how
+    // far apart their own ratings were, because expected-outcome was scored
+    // team-average vs team-average. Now each player is scored against the
+    // opponent average using their OWN rating.
+    const strongWinner = testPlayer("elopeerz", "strongwin")
+    const weakWinner = testPlayer("elopeerz", "weakwin")
+    const strongLoser = testPlayer("elopeerz", "strongloss")
+    const weakLoser = testPlayer("elopeerz", "weakloss")
+
+    const ids = new Map<string, string>()
+    for (const [p, elo] of [
+      [strongWinner, 1197], [weakWinner, 796], [strongLoser, 1135], [weakLoser, 899],
+    ] as const) {
+      const m = await ensurePlayers([p], elo)
+      ids.set(p.email, m.get(p.email)!)
+    }
+
+    await page.goto("/")
+    // Team A (losers) sits close together; Team B (winners) has a huge
+    // in-team gap — the exact shape that exposed the old formula.
+    await addMatchViaUI(page, {
+      teamA: { attackerEmail: weakLoser.email, defenderEmail: strongLoser.email },
+      teamB: { attackerEmail: strongWinner.email, defenderEmail: weakWinner.email },
+      scoreA: 4,
+      scoreB: 10,
+    })
+
+    const expected = computeMatchResult({
+      teamA: [
+        { id: ids.get(weakLoser.email)!, elo: 899, gamesPlayedBefore: 0 },
+        { id: ids.get(strongLoser.email)!, elo: 1135, gamesPlayedBefore: 0 },
+      ],
+      teamB: [
+        { id: ids.get(strongWinner.email)!, elo: 1197, gamesPlayedBefore: 0 },
+        { id: ids.get(weakWinner.email)!, elo: 796, gamesPlayedBefore: 0 },
+      ],
+      teamAWon: false,
+    })
+
+    const matchId = await getLatestMatchIdForPlayer(ids.get(strongWinner.email)!)
+    const dbRows = await getMatchPlayersElo(matchId)
+    for (const exp of [...expected.teamA, ...expected.teamB]) {
+      const dbRow = dbRows.find(r => r.playerId === exp.id)!
+      expect(dbRow.eloAfter, `elo_after for ${exp.id}`).toBe(exp.after)
+    }
+
+    const strongWinDelta = expected.teamB.find(r => r.id === ids.get(strongWinner.email))!.delta
+    const weakWinDelta = expected.teamB.find(r => r.id === ids.get(weakWinner.email))!.delta
+    const strongLossDelta = expected.teamA.find(r => r.id === ids.get(strongLoser.email))!.delta
+    const weakLossDelta = expected.teamA.find(r => r.id === ids.get(weakLoser.email))!.delta
+
+    // Same team, same win — but the already-favored winner barely moves
+    // while the underdog winner gains a lot more.
+    expect(weakWinDelta).toBeGreaterThan(strongWinDelta)
+    expect(strongWinDelta).not.toBe(weakWinDelta)
+    // Same team, same loss — the higher-rated loser (expected to win) drops
+    // more than the lower-rated one.
+    expect(strongLossDelta).toBeLessThan(weakLossDelta)
+    expect(strongLossDelta).not.toBe(weakLossDelta)
   })
 
   test("K-factor drops from 94 to 64 once a player reaches 10 prior games", async ({ page }) => {

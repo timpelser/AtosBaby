@@ -14,6 +14,59 @@ function getK(gamesPlayed: number, matchDate?: Date): number {
   return gamesPlayed < 10 ? 94 : 64
 }
 
+// Before this cutoff, a match's expected score was computed team-average vs
+// team-average and the resulting delta was split evenly between teammates —
+// so two players on the same team always gained/lost the *identical* number
+// of points, no matter how far apart their own ratings were (a 796-rated
+// player winning alongside a 1197-rated partner got the same +34 as they
+// did). From the cutoff on, each player is scored against the opponent
+// team's average using their OWN rating instead of the team average, so the
+// weaker player earns more for the same win and the stronger player less —
+// see computeMatchDeltas. Deliberately NOT applied retroactively: matches
+// played before this keep their original team-average scoring so already-
+// published results and history don't shift.
+const INDIVIDUAL_ELO_CUTOFF = new Date("2026-09-03T12:25:00.000Z")
+
+type TeamMember = { id: string; elo: number; gamesBefore: number }
+
+/**
+ * Computes each of the 4 players' ELO delta for one match. Shared by
+ * updateElo (fast path for a match just logged) and recomputeAllElos (full
+ * chronological replay after a delete/undo) so the two implementations of
+ * "what does this match do to everyone's ELO" can never silently drift
+ * apart — they used to duplicate this formula inline, which is exactly the
+ * kind of place a team-average vs per-player discrepancy could sneak in.
+ */
+function computeMatchDeltas(
+  teamA: [TeamMember, TeamMember],
+  teamB: [TeamMember, TeamMember],
+  teamAWon: boolean,
+  matchDate: Date
+): { a: [number, number]; b: [number, number] } {
+  const teamAAvg = (teamA[0].elo + teamA[1].elo) / 2
+  const teamBAvg = (teamB[0].elo + teamB[1].elo) / 2
+  const actualA = teamAWon ? 1 : 0
+  const actualB = teamAWon ? 0 : 1
+  const perPlayer = matchDate >= INDIVIDUAL_ELO_CUTOFF
+
+  const expected = (playerElo: number, ownTeamAvg: number, opponentAvg: number) =>
+    1 / (1 + Math.pow(10, (opponentAvg - (perPlayer ? playerElo : ownTeamAvg)) / 400))
+
+  const deltaFor = (player: TeamMember, ownTeamAvg: number, opponentAvg: number, actual: number) =>
+    Math.round(getK(player.gamesBefore, matchDate) * (actual - expected(player.elo, ownTeamAvg, opponentAvg)))
+
+  return {
+    a: [
+      deltaFor(teamA[0], teamAAvg, teamBAvg, actualA),
+      deltaFor(teamA[1], teamAAvg, teamBAvg, actualA),
+    ],
+    b: [
+      deltaFor(teamB[0], teamBAvg, teamAAvg, actualB),
+      deltaFor(teamB[1], teamBAvg, teamAAvg, actualB),
+    ],
+  }
+}
+
 type SaveMatchInput = {
   teamA: { attacker: string; defender: string }
   teamB: { attacker: string; defender: string }
@@ -57,31 +110,21 @@ async function updateElo(
 
   const eloMap = new Map(rows.map((r) => [r.id as string, Number(r.elo)]))
   const gamesMap = new Map(rows.map((r) => [r.id as string, Number(r.games_before)]))
+  const member = (id: string): TeamMember => ({ id, elo: eloMap.get(id) ?? 1000, gamesBefore: gamesMap.get(id) ?? 0 })
 
-  const teamAAvg = ((eloMap.get(a1) ?? 1000) + (eloMap.get(a2) ?? 1000)) / 2
-  const teamBAvg = ((eloMap.get(b1) ?? 1000) + (eloMap.get(b2) ?? 1000)) / 2
-
-  const expectedA = 1 / (1 + Math.pow(10, (teamBAvg - teamAAvg) / 400))
-  const expectedB = 1 - expectedA
-  const actualA = teamAWon ? 1 : 0
-  const actualB = teamAWon ? 0 : 1
-
-  const delta = (id: string, actual: number, expected: number) =>
-    Math.round(getK(gamesMap.get(id) ?? 0, new Date()) * (actual - expected))
-
-  const eloBefore = (id: string) => eloMap.get(id) ?? 1000
-  const eloAfter = (id: string, actual: number, expected: number) =>
-    eloBefore(id) + delta(id, actual, expected)
+  const teamA: [TeamMember, TeamMember] = [member(a1), member(a2)]
+  const teamB: [TeamMember, TeamMember] = [member(b1), member(b2)]
+  const { a: deltaA, b: deltaB } = computeMatchDeltas(teamA, teamB, teamAWon, new Date())
 
   await Promise.all([
-    sql`UPDATE players SET elo = elo + ${delta(a1, actualA, expectedA)} WHERE id = ${a1}::uuid`,
-    sql`UPDATE players SET elo = elo + ${delta(a2, actualA, expectedA)} WHERE id = ${a2}::uuid`,
-    sql`UPDATE players SET elo = elo + ${delta(b1, actualB, expectedB)} WHERE id = ${b1}::uuid`,
-    sql`UPDATE players SET elo = elo + ${delta(b2, actualB, expectedB)} WHERE id = ${b2}::uuid`,
-    sql`UPDATE match_players SET elo_before = ${eloBefore(a1)}, elo_after = ${eloAfter(a1, actualA, expectedA)} WHERE match_id = ${matchId} AND player_id = ${a1}::uuid`,
-    sql`UPDATE match_players SET elo_before = ${eloBefore(a2)}, elo_after = ${eloAfter(a2, actualA, expectedA)} WHERE match_id = ${matchId} AND player_id = ${a2}::uuid`,
-    sql`UPDATE match_players SET elo_before = ${eloBefore(b1)}, elo_after = ${eloAfter(b1, actualB, expectedB)} WHERE match_id = ${matchId} AND player_id = ${b1}::uuid`,
-    sql`UPDATE match_players SET elo_before = ${eloBefore(b2)}, elo_after = ${eloAfter(b2, actualB, expectedB)} WHERE match_id = ${matchId} AND player_id = ${b2}::uuid`,
+    sql`UPDATE players SET elo = elo + ${deltaA[0]} WHERE id = ${a1}::uuid`,
+    sql`UPDATE players SET elo = elo + ${deltaA[1]} WHERE id = ${a2}::uuid`,
+    sql`UPDATE players SET elo = elo + ${deltaB[0]} WHERE id = ${b1}::uuid`,
+    sql`UPDATE players SET elo = elo + ${deltaB[1]} WHERE id = ${b2}::uuid`,
+    sql`UPDATE match_players SET elo_before = ${teamA[0].elo}, elo_after = ${teamA[0].elo + deltaA[0]} WHERE match_id = ${matchId} AND player_id = ${a1}::uuid`,
+    sql`UPDATE match_players SET elo_before = ${teamA[1].elo}, elo_after = ${teamA[1].elo + deltaA[1]} WHERE match_id = ${matchId} AND player_id = ${a2}::uuid`,
+    sql`UPDATE match_players SET elo_before = ${teamB[0].elo}, elo_after = ${teamB[0].elo + deltaB[0]} WHERE match_id = ${matchId} AND player_id = ${b1}::uuid`,
+    sql`UPDATE match_players SET elo_before = ${teamB[1].elo}, elo_after = ${teamB[1].elo + deltaB[1]} WHERE match_id = ${matchId} AND player_id = ${b2}::uuid`,
   ])
 }
 
@@ -137,23 +180,18 @@ export async function recomputeAllElos(): Promise<void> {
     if (event.kind === "match") {
       const { match_id, a_att, a_def, b_att, b_def, score_team_a, score_team_b, played_at } = event.data
       const matchDate = new Date(played_at as string)
-
-      const eloBefore = { a_att: getElo(a_att as string), a_def: getElo(a_def as string), b_att: getElo(b_att as string), b_def: getElo(b_def as string) }
-      const teamAAvg = (eloBefore.a_att + eloBefore.a_def) / 2
-      const teamBAvg = (eloBefore.b_att + eloBefore.b_def) / 2
-      const expectedA = 1 / (1 + Math.pow(10, (teamBAvg - teamAAvg) / 400))
-      const expectedB = 1 - expectedA
       const teamAWon = Number(score_team_a) > Number(score_team_b)
-      const actualA = teamAWon ? 1 : 0
-      const actualB = teamAWon ? 0 : 1
-      const delta = (id: string, actual: number, expected: number) =>
-        Math.round(getK(getGames(id), matchDate) * (actual - expected))
+
+      const member = (id: string): TeamMember => ({ id, elo: getElo(id), gamesBefore: getGames(id) })
+      const teamA: [TeamMember, TeamMember] = [member(a_att as string), member(a_def as string)]
+      const teamB: [TeamMember, TeamMember] = [member(b_att as string), member(b_def as string)]
+      const { a: deltaA, b: deltaB } = computeMatchDeltas(teamA, teamB, teamAWon, matchDate)
 
       const newElos = {
-        a_att: eloBefore.a_att + delta(a_att as string, actualA, expectedA),
-        a_def: eloBefore.a_def + delta(a_def as string, actualA, expectedA),
-        b_att: eloBefore.b_att + delta(b_att as string, actualB, expectedB),
-        b_def: eloBefore.b_def + delta(b_def as string, actualB, expectedB),
+        a_att: teamA[0].elo + deltaA[0],
+        a_def: teamA[1].elo + deltaA[1],
+        b_att: teamB[0].elo + deltaB[0],
+        b_def: teamB[1].elo + deltaB[1],
       }
 
       eloMap.set(a_att as string, newElos.a_att)
@@ -161,16 +199,16 @@ export async function recomputeAllElos(): Promise<void> {
       eloMap.set(b_att as string, newElos.b_att)
       eloMap.set(b_def as string, newElos.b_def)
 
-      gamesMap.set(a_att as string, getGames(a_att as string) + 1)
-      gamesMap.set(a_def as string, getGames(a_def as string) + 1)
-      gamesMap.set(b_att as string, getGames(b_att as string) + 1)
-      gamesMap.set(b_def as string, getGames(b_def as string) + 1)
+      gamesMap.set(a_att as string, teamA[0].gamesBefore + 1)
+      gamesMap.set(a_def as string, teamA[1].gamesBefore + 1)
+      gamesMap.set(b_att as string, teamB[0].gamesBefore + 1)
+      gamesMap.set(b_def as string, teamB[1].gamesBefore + 1)
 
       await Promise.all([
-        sql`UPDATE match_players SET elo_before = ${eloBefore.a_att}, elo_after = ${newElos.a_att} WHERE match_id = ${match_id as string} AND player_id = ${a_att as string}::uuid`,
-        sql`UPDATE match_players SET elo_before = ${eloBefore.a_def}, elo_after = ${newElos.a_def} WHERE match_id = ${match_id as string} AND player_id = ${a_def as string}::uuid`,
-        sql`UPDATE match_players SET elo_before = ${eloBefore.b_att}, elo_after = ${newElos.b_att} WHERE match_id = ${match_id as string} AND player_id = ${b_att as string}::uuid`,
-        sql`UPDATE match_players SET elo_before = ${eloBefore.b_def}, elo_after = ${newElos.b_def} WHERE match_id = ${match_id as string} AND player_id = ${b_def as string}::uuid`,
+        sql`UPDATE match_players SET elo_before = ${teamA[0].elo}, elo_after = ${newElos.a_att} WHERE match_id = ${match_id as string} AND player_id = ${a_att as string}::uuid`,
+        sql`UPDATE match_players SET elo_before = ${teamA[1].elo}, elo_after = ${newElos.a_def} WHERE match_id = ${match_id as string} AND player_id = ${a_def as string}::uuid`,
+        sql`UPDATE match_players SET elo_before = ${teamB[0].elo}, elo_after = ${newElos.b_att} WHERE match_id = ${match_id as string} AND player_id = ${b_att as string}::uuid`,
+        sql`UPDATE match_players SET elo_before = ${teamB[1].elo}, elo_after = ${newElos.b_def} WHERE match_id = ${match_id as string} AND player_id = ${b_def as string}::uuid`,
       ])
     } else {
       // Decay event: subtract points from in-memory ELO and persist elo_before/elo_after
