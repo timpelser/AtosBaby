@@ -176,6 +176,18 @@ export async function recomputeAllElos(): Promise<void> {
     })),
   ].sort((a, b) => a.at - b.at)
 
+  // Replay the timeline purely in memory — no DB writes in this loop. Only
+  // the *computation* has to happen in chronological order (each event's
+  // expected-score/decay depends on the running tally built by every prior
+  // event); persisting the result doesn't, since nothing later ever reads
+  // back from the database mid-replay, only from eloMap/gamesMap. Collect
+  // the writes instead and fire them all at once after the loop — this is
+  // what turns what used to be one sequential network round-trip per
+  // historical event (100+ on this app's real history) into a small,
+  // constant number of round-trips regardless of how much history there is.
+  const matchPlayerWrites: { matchId: string; playerId: string; eloBefore: number; eloAfter: number }[] = []
+  const decayWrites: { id: string; eloBefore: number; eloAfter: number }[] = []
+
   for (const event of timeline) {
     if (event.kind === "match") {
       const { match_id, a_att, a_def, b_att, b_def, score_team_a, score_team_b, played_at } = event.data
@@ -204,30 +216,43 @@ export async function recomputeAllElos(): Promise<void> {
       gamesMap.set(b_att as string, teamB[0].gamesBefore + 1)
       gamesMap.set(b_def as string, teamB[1].gamesBefore + 1)
 
-      await Promise.all([
-        sql`UPDATE match_players SET elo_before = ${teamA[0].elo}, elo_after = ${newElos.a_att} WHERE match_id = ${match_id as string} AND player_id = ${a_att as string}::uuid`,
-        sql`UPDATE match_players SET elo_before = ${teamA[1].elo}, elo_after = ${newElos.a_def} WHERE match_id = ${match_id as string} AND player_id = ${a_def as string}::uuid`,
-        sql`UPDATE match_players SET elo_before = ${teamB[0].elo}, elo_after = ${newElos.b_att} WHERE match_id = ${match_id as string} AND player_id = ${b_att as string}::uuid`,
-        sql`UPDATE match_players SET elo_before = ${teamB[1].elo}, elo_after = ${newElos.b_def} WHERE match_id = ${match_id as string} AND player_id = ${b_def as string}::uuid`,
-      ])
+      matchPlayerWrites.push(
+        { matchId: match_id as string, playerId: a_att as string, eloBefore: teamA[0].elo, eloAfter: newElos.a_att },
+        { matchId: match_id as string, playerId: a_def as string, eloBefore: teamA[1].elo, eloAfter: newElos.a_def },
+        { matchId: match_id as string, playerId: b_att as string, eloBefore: teamB[0].elo, eloAfter: newElos.b_att },
+        { matchId: match_id as string, playerId: b_def as string, eloBefore: teamB[1].elo, eloAfter: newElos.b_def },
+      )
     } else {
-      // Decay event: subtract points from in-memory ELO and persist elo_before/elo_after
+      // Decay event: subtract points from in-memory ELO, queue elo_before/elo_after for later
       const eloBefore = getElo(event.player_id)
       const eloAfter = eloBefore + event.points  // points is negative (-10)
       eloMap.set(event.player_id, eloAfter)
-      await sql`
-        UPDATE elo_decay_events
-        SET elo_before = ${eloBefore}, elo_after = ${eloAfter}
-        WHERE id = ${event.id}::uuid
-      `
+      decayWrites.push({ id: event.id, eloBefore, eloAfter })
     }
   }
 
-  await Promise.all(
-    Array.from(eloMap.entries()).map(([id, elo]) =>
+  // One non-interactive transaction, one round-trip: every match_players
+  // row, every elo_decay_events row, and every player's final elo, all at
+  // once. sql.transaction() takes un-awaited query promises built from the
+  // same sql tag and batches them server-side — safe here specifically
+  // because by this point the full list is static (nothing conditional or
+  // dependent on an earlier statement's result), which is exactly the case
+  // its docs say it's built for.
+  const writes = [
+    ...matchPlayerWrites.map(w =>
+      sql`UPDATE match_players SET elo_before = ${w.eloBefore}, elo_after = ${w.eloAfter} WHERE match_id = ${w.matchId} AND player_id = ${w.playerId}::uuid`
+    ),
+    ...decayWrites.map(w =>
+      sql`UPDATE elo_decay_events SET elo_before = ${w.eloBefore}, elo_after = ${w.eloAfter} WHERE id = ${w.id}::uuid`
+    ),
+    ...Array.from(eloMap.entries()).map(([id, elo]) =>
       sql`UPDATE players SET elo = ${elo} WHERE id = ${id}::uuid`
-    )
-  )
+    ),
+  ]
+
+  if (writes.length > 0) {
+    await sql.transaction(writes)
+  }
 }
 
 export async function saveMatch(input: SaveMatchInput): Promise<{ matchId: string }> {
