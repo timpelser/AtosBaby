@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useRef, useCallback } from "react"
 import {
   XIcon, LockIcon,
   Flag, Footprints, Layers, ShieldCheck, Crown, Star, Trophy, Medal,
@@ -54,7 +54,7 @@ function EloChart({ history }: { history: EloHistoryPoint[] }) {
   if (history.length < 2) {
     return (
       <div className="flex items-center justify-center h-32 text-muted-foreground text-sm text-center">
-        Pas assez de données pour afficher l'historique.
+        Pas assez de données pour afficher l&apos;historique.
       </div>
     )
   }
@@ -96,8 +96,6 @@ function EloChart({ history }: { history: EloHistoryPoint[] }) {
   ]
 
   const current = elos[elos.length - 1]
-  const baseline = 1000
-  const trend = current - baseline
   const peak = Math.max(...elos)
   const peakIdx = elos.lastIndexOf(peak)
   const peakDate = history[peakIdx]?.played_at
@@ -480,7 +478,6 @@ function MatchesTab({ matches, playerId }: { matches: Match[]; playerId: string 
     <div className="divide-y divide-border -mx-4">
       {matches.map(match => {
         const playerOnA = match.team_a.some(mp => mp.player.id === playerId)
-        const teamAWon = match.score_team_a > match.score_team_b
         const playerTeam = playerOnA ? match.team_a : match.team_b
         const playerMp = playerTeam.find(mp => mp.player.id === playerId)
         const eloDelta = playerMp?.elo_after != null && playerMp?.elo_before != null
@@ -518,7 +515,9 @@ function MatchesTab({ matches, playerId }: { matches: Match[]; playerId: string 
               )}
             </div>
             <div className="flex items-center gap-2">
-              <span className={`flex-1 text-xs truncate ${playerWon ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+              {/* min-w-0 lets truncate actually kick in — a flex item's default
+                  min-width:auto floors it at the full nowrap text width. */}
+              <span className={`flex-1 min-w-0 text-xs truncate ${playerWon ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
                 {teamNames(myTeam)}
               </span>
               <div className="flex items-center gap-1 shrink-0">
@@ -530,7 +529,7 @@ function MatchesTab({ matches, playerId }: { matches: Match[]; playerId: string 
                   {oppScore}
                 </span>
               </div>
-              <span className={`flex-1 text-xs truncate text-right ${!playerWon ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+              <span className={`flex-1 min-w-0 text-xs truncate text-right ${!playerWon ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
                 {teamNames(oppTeam)}
               </span>
             </div>
@@ -654,6 +653,105 @@ function BadgesTab({ badges, loading }: { badges: BadgeStatus[] | null; loading:
 
 // ─── Main dialog ────────────────────────────────────────────────────────────
 
+/**
+ * Tab state lives here rather than in PlayerProfileDialog on purpose: Base
+ * UI's Dialog.Portal defaults to keepMounted={false}, so this whole subtree
+ * unmounts once the dialog finishes closing. That resets the active tab and
+ * the fetched data for free on the next open — no reset effect needed.
+ */
+function ProfileTabs({
+  playerId,
+  playerMatches,
+  firstName,
+  lastName,
+}: {
+  playerId: string
+  playerMatches: Match[]
+  firstName: string
+  lastName: string
+}) {
+  // null = not yet fetched / loading; array = done
+  const [eloHistory, setEloHistory] = useState<EloHistoryPoint[] | null>(null)
+  const [rivalries, setRivalries] = useState<RivalryStat[] | null>(null)
+  const [badges, setBadges] = useState<BadgeStatus[] | null>(null)
+  const [activeTab, setActiveTab] = useState("matches")
+  // track which tabs have already been fetched for this open session
+  const fetched = useRef({ elo: false, rivals: false, badges: false })
+
+  // Lazy-fetch only when the user visits a tab for the first time
+  const handleTabChange = useCallback((tab: string) => {
+    setActiveTab(tab)
+    if (tab === "elo" && !fetched.current.elo) {
+      fetched.current.elo = true
+      getPlayerEloHistory(playerId).then(setEloHistory)
+    }
+    if (tab === "rivals" && !fetched.current.rivals) {
+      fetched.current.rivals = true
+      getPlayerRivalries(playerId).then(setRivalries)
+    }
+    if (tab === "badges" && !fetched.current.badges) {
+      fetched.current.badges = true
+      getPlayerBadges(playerId).then(setBadges)
+    }
+  }, [playerId])
+
+  return (
+    // min-w-0: this is a grid item of DialogContent, and without it the
+    // default min-width:auto floors it at its content's min-content width,
+    // pushing the whole dialog wider than its own max-width.
+    <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col min-w-0">
+      <div className="px-4 pt-3">
+        {/* The h-auto override has to carry the same variant prefix as the
+            base h-8 it replaces, otherwise twMerge keeps both and the
+            prefixed one wins — leaving the grey bar stuck at one line. */}
+        <TabsList className="w-full grid grid-cols-4 gap-1 items-stretch group-data-horizontal/tabs:h-auto">
+          <TabsTrigger value="matches" className="h-auto py-1.5 px-1 whitespace-normal text-center leading-tight">Derniers matchs</TabsTrigger>
+          <TabsTrigger value="elo" className="h-auto py-1.5 px-1 whitespace-normal text-center leading-tight">Historique ELO</TabsTrigger>
+          <TabsTrigger value="rivals" className="h-auto py-1.5 px-1 whitespace-normal text-center leading-tight">Rivalités</TabsTrigger>
+          <TabsTrigger value="badges" className="h-auto py-1.5 px-1 whitespace-normal text-center leading-tight">Trophées</TabsTrigger>
+        </TabsList>
+      </div>
+
+      <div className="max-h-[60vh] overflow-y-auto overflow-x-hidden px-4 pb-4 pt-3">
+        <TabsContent value="matches">
+          <MatchesTab matches={playerMatches} playerId={playerId} />
+        </TabsContent>
+
+        <TabsContent value="elo">
+          {eloHistory === null ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-2">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="bg-muted rounded-xl p-3 text-center space-y-2">
+                    <div className="h-3 w-16 mx-auto rounded bg-muted-foreground/20 animate-pulse" />
+                    <div className="h-6 w-12 mx-auto rounded bg-muted-foreground/20 animate-pulse" />
+                  </div>
+                ))}
+              </div>
+              <div className="h-36 rounded-xl bg-muted animate-pulse" />
+            </div>
+          ) : (
+            <EloChart history={eloHistory} />
+          )}
+        </TabsContent>
+
+        <TabsContent value="rivals">
+          <RivalriesTab
+            rivalries={rivalries}
+            loading={rivalries === null}
+            playerFirst={firstName}
+            playerLast={lastName}
+          />
+        </TabsContent>
+
+        <TabsContent value="badges">
+          <BadgesTab badges={badges} loading={badges === null} />
+        </TabsContent>
+      </div>
+    </Tabs>
+  )
+}
+
 export function PlayerProfileDialog({
   stats,
   rank,
@@ -667,41 +765,6 @@ export function PlayerProfileDialog({
   open: boolean
   onClose: () => void
 }) {
-  // null = not yet fetched / loading; array = done
-  const [eloHistory, setEloHistory] = useState<EloHistoryPoint[] | null>(null)
-  const [rivalries, setRivalries] = useState<RivalryStat[] | null>(null)
-  const [badges, setBadges] = useState<BadgeStatus[] | null>(null)
-  const [activeTab, setActiveTab] = useState("matches")
-  // track which tabs have already been fetched for this open session
-  const fetched = useRef({ elo: false, rivals: false, badges: false })
-
-  // Reset state every time the dialog opens
-  useEffect(() => {
-    if (!open) return
-    setActiveTab("matches")
-    setEloHistory(null)
-    setRivalries(null)
-    setBadges(null)
-    fetched.current = { elo: false, rivals: false, badges: false }
-  }, [open])
-
-  // Lazy-fetch only when the user visits a tab for the first time
-  const handleTabChange = useCallback((tab: string) => {
-    setActiveTab(tab)
-    if (tab === "elo" && !fetched.current.elo) {
-      fetched.current.elo = true
-      getPlayerEloHistory(stats.player.id).then(setEloHistory)
-    }
-    if (tab === "rivals" && !fetched.current.rivals) {
-      fetched.current.rivals = true
-      getPlayerRivalries(stats.player.id).then(setRivalries)
-    }
-    if (tab === "badges" && !fetched.current.badges) {
-      fetched.current.badges = true
-      getPlayerBadges(stats.player.id).then(setBadges)
-    }
-  }, [stats.player.id])
-
   const { first_name, last_name } = stats.player
   const initials = getInitials(first_name, last_name)
 
@@ -731,54 +794,12 @@ export function PlayerProfileDialog({
           </button>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col">
-          <div className="px-4 pt-3">
-            <TabsList className="w-full justify-start overflow-x-auto">
-              <TabsTrigger value="matches" className="shrink-0 px-3">Derniers matchs</TabsTrigger>
-              <TabsTrigger value="elo" className="shrink-0 px-3">Historique ELO</TabsTrigger>
-              <TabsTrigger value="rivals" className="shrink-0 px-3">Rivalités</TabsTrigger>
-              <TabsTrigger value="badges" className="shrink-0 px-3">Trophées</TabsTrigger>
-            </TabsList>
-          </div>
-
-          <div className="max-h-[60vh] overflow-y-auto overflow-x-hidden px-4 pb-4 pt-3">
-            <TabsContent value="matches">
-              <MatchesTab matches={playerMatches} playerId={stats.player.id} />
-            </TabsContent>
-
-            <TabsContent value="elo">
-              {eloHistory === null ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-3 gap-2">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="bg-muted rounded-xl p-3 text-center space-y-2">
-                        <div className="h-3 w-16 mx-auto rounded bg-muted-foreground/20 animate-pulse" />
-                        <div className="h-6 w-12 mx-auto rounded bg-muted-foreground/20 animate-pulse" />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="h-36 rounded-xl bg-muted animate-pulse" />
-                </div>
-              ) : (
-                <EloChart history={eloHistory} />
-              )}
-            </TabsContent>
-
-            <TabsContent value="rivals">
-              <RivalriesTab
-                rivalries={rivalries}
-                loading={rivalries === null}
-                playerFirst={first_name}
-                playerLast={last_name}
-              />
-            </TabsContent>
-
-            <TabsContent value="badges">
-              <BadgesTab badges={badges} loading={badges === null} />
-            </TabsContent>
-          </div>
-        </Tabs>
+        <ProfileTabs
+          playerId={stats.player.id}
+          playerMatches={playerMatches}
+          firstName={first_name}
+          lastName={last_name}
+        />
       </DialogContent>
     </Dialog>
   )
