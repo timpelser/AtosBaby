@@ -59,3 +59,10 @@ export type RivalryStat = {
   losses: number
   win_rate: number
 }
+
+export type SeasonChampion = {
+  seasonKey: string
+  seasonLabel: string
+  player: Player
+  elo: number
+}

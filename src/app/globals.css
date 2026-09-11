@@ -209,6 +209,48 @@
   100% { transform: translateY(34px) scale(0.4); opacity: 0; }
 }
 
+/* ─── Seasonal falling particles ─────────────────────────────────────────
+   One shared drift-down keyframe reused for every falling season's glyph
+   (snow, petals, leaves) — only the emoji and the border gradient change
+   per season, in season-theme.tsx. --season-drift is set inline per
+   particle for a bit of side-to-side sway so they don't all fall dead
+   straight. Summer has no particle at all — just the border. */
+@keyframes season-fall {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+  8% { opacity: 0.85; }
+  92% { opacity: 0.85; }
+  100% { transform: translate(var(--season-drift, 0px), 115vh) rotate(360deg); opacity: 0; }
+}
+.animate-season-fall {
+  animation-name: season-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* ─── Border shimmer ──────────────────────────────────────────────────────
+   A soft highlight sweeping along the page border's four edges — a thin
+   bar per edge in season-theme.tsx, each carrying a gradient wider than
+   itself (background-size) that slides across via background-position.
+   Two variants because the sweep direction has to match the bar's own
+   orientation: -x for the horizontal (top/bottom) bars, -y for the
+   vertical (left/right) ones. */
+@keyframes border-shimmer-x {
+  0% { background-position: -150% 0; }
+  100% { background-position: 150% 0; }
+}
+@keyframes border-shimmer-y {
+  0% { background-position: 0 -150%; }
+  100% { background-position: 0 150%; }
+}
+.animate-border-shimmer-x {
+  background-size: 200% 100%;
+  animation: border-shimmer-x 2.8s linear infinite;
+}
+.animate-border-shimmer-y {
+  background-size: 100% 200%;
+  animation: border-shimmer-y 2.8s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation: none !important;

@@ -8,113 +8,61 @@ function getInitials(first: string, last: string) {
   return `${first[0]}${last[0]}`.toUpperCase()
 }
 
-function ChampionCard({ stats, matches }: { stats: PlayerStats; matches: Match[] }) {
+// A real podium: three blocks of different heights (tallest in the middle),
+// arranged in the classic 2nd–1st–3rd left-to-right order via `order`, each
+// just an avatar + name sitting above its block — no stats, no card
+// chrome. The rank number is embossed into the block face itself.
+//
+// avatarBg is a light tint of the block's own color, not a translucent
+// white — the avatar sits on the page's plain background, not overlapping
+// the block, so a white/NN tone (which would read fine painted onto a
+// solid colored card) is nearly invisible against a near-white page.
+const PODIUM = {
+  1: {
+    height: "h-[16rem] sm:h-[22rem]",
+    block: "bg-primary",
+    rankText: "text-white",
+    avatarBg: "bg-primary/10 border-primary/30 text-primary",
+    order: "order-2",
+  },
+  2: {
+    height: "h-[12rem] sm:h-[16rem]",
+    block: "bg-slate-300",
+    rankText: "text-white",
+    avatarBg: "bg-slate-100 border-slate-300 text-slate-600",
+    order: "order-1",
+  },
+  3: {
+    height: "h-[10rem] sm:h-[14rem]",
+    block: "bg-orange-400",
+    rankText: "text-white",
+    avatarBg: "bg-orange-100 border-orange-300 text-orange-500",
+    order: "order-3",
+  },
+} as const
+
+function PodiumSpot({ stats, rank, matches }: { stats: PlayerStats; rank: 1 | 2 | 3; matches: Match[] }) {
   const [open, setOpen] = useState(false)
+  const p = PODIUM[rank]
   const playerMatches = matches.filter(m =>
     [...m.team_a, ...m.team_b].some(mp => mp.player.id === stats.player.id)
   )
 
   return (
     <>
-      <div className="relative flex-1 rounded-2xl bg-primary px-8 py-8 flex flex-col items-center justify-center gap-6 shadow-2xl min-h-64 overflow-hidden">
-        {/* Background rank */}
-        <span className="absolute right-6 top-4 text-[7rem] font-black text-white/10 leading-none select-none">
-          #1
-        </span>
-
-        {/* Row 1: Avatar + name */}
-        <div className="flex flex-col items-center gap-6 z-10">
-          <button
-            onClick={() => setOpen(true)}
-            className="w-16 h-16 rounded-full bg-white/20 border-2 border-white/40 text-white flex items-center justify-center text-lg font-bold hover:bg-white/30 transition-colors cursor-pointer"
-            aria-label={`Profil de ${stats.player.first_name} ${stats.player.last_name}`}
-          >
-            {getInitials(stats.player.first_name, stats.player.last_name)}
-          </button>
-          <p className="text-3xl font-bold text-white leading-snug text-center">
-            {stats.player.first_name} {stats.player.last_name}
-          </p>
-        </div>
-
-        {/* Row 2: Stats */}
-        <div className="flex gap-6 z-10">
-          <div className="text-center">
-            <p className="text-xs font-semibold tracking-widest text-white/60 uppercase">Victoires</p>
-            <p className="text-3xl font-bold text-white">{stats.wins}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs font-semibold tracking-widest text-white/60 uppercase">Défaites</p>
-            <p className="text-3xl font-bold text-white">{stats.losses}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs font-semibold tracking-widest text-white/60 uppercase">Ratio</p>
-            <p className="text-3xl font-bold text-white">{stats.win_rate.toFixed(0)}%</p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs font-semibold tracking-widest text-white/60 uppercase">ELO</p>
-            <p className="text-3xl font-bold text-white">{stats.elo}</p>
-          </div>
-        </div>
-      </div>
-      <PlayerProfileDialog
-        stats={stats}
-        rank={1}
-        playerMatches={playerMatches}
-        open={open}
-        onClose={() => setOpen(false)}
-      />
-    </>
-  )
-}
-
-function RunnerUpCard({ stats, rank, matches }: { stats: PlayerStats; rank: 2 | 3; matches: Match[] }) {
-  const [open, setOpen] = useState(false)
-  const isSecond = rank === 2
-  const rankColor = isSecond ? "text-primary" : "text-orange-400"
-  const playerMatches = matches.filter(m =>
-    [...m.team_a, ...m.team_b].some(mp => mp.player.id === stats.player.id)
-  )
-
-  return (
-    <>
-      <div className="flex-1 rounded-2xl bg-card border border-border px-8 py-8 flex flex-col items-center justify-center gap-6 shadow-sm relative overflow-hidden min-h-64">
-        {/* Background rank */}
-        <span className={`absolute right-6 top-4 text-[7rem] font-black opacity-10 leading-none select-none ${rankColor}`}>
-          #{rank}
-        </span>
-
-        {/* Row 1: Avatar + name */}
-        <div className="flex flex-col items-center gap-6 z-10">
-          <button
-            onClick={() => setOpen(true)}
-            className="w-16 h-16 rounded-full bg-muted border-2 border-border text-muted-foreground flex items-center justify-center text-lg font-bold hover:bg-muted/70 transition-colors cursor-pointer"
-            aria-label={`Profil de ${stats.player.first_name} ${stats.player.last_name}`}
-          >
-            {getInitials(stats.player.first_name, stats.player.last_name)}
-          </button>
-          <p className="text-3xl text-foreground leading-snug text-center">
-            {stats.player.first_name} {stats.player.last_name}
-          </p>
-        </div>
-
-        {/* Row 2: Stats */}
-        <div className="flex gap-6 z-10">
-          <div className="text-center">
-            <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">Victoires</p>
-            <p className="text-3xl text-foreground">{stats.wins}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">Défaites</p>
-            <p className="text-3xl text-foreground">{stats.losses}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">Ratio</p>
-            <p className="text-3xl text-foreground">{stats.win_rate.toFixed(0)}%</p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">ELO</p>
-            <p className="text-3xl text-foreground">{stats.elo}</p>
-          </div>
+      <div className={`flex flex-col items-center gap-4 flex-1 max-w-96 ${p.order}`}>
+        <button
+          onClick={() => setOpen(true)}
+          className={`w-24 h-24 sm:w-32 sm:h-32 rounded-full border-2 flex items-center justify-center text-xl sm:text-2xl font-bold hover:opacity-80 transition-opacity cursor-pointer ${p.avatarBg}`}
+          aria-label={`Profil de ${stats.player.first_name} ${stats.player.last_name}`}
+        >
+          {getInitials(stats.player.first_name, stats.player.last_name)}
+        </button>
+        <p className="text-lg sm:text-2xl font-semibold text-foreground text-center leading-tight px-1 truncate w-full">
+          {stats.player.first_name} {stats.player.last_name}
+        </p>
+        <div className={`w-full ${p.height} ${p.block} rounded-t-2xl flex items-start justify-center pt-4 sm:pt-6`}>
+          <span className={`text-6xl sm:text-8xl font-black leading-none select-none ${p.rankText}`}>{rank}</span>
         </div>
       </div>
       <PlayerProfileDialog
@@ -128,72 +76,36 @@ function RunnerUpCard({ stats, rank, matches }: { stats: PlayerStats; rank: 2 | 
   )
 }
 
-function SkeletonChampionCard() {
+function SkeletonSpot({ rank }: { rank: 1 | 2 | 3 }) {
+  const p = PODIUM[rank]
   return (
-    <div className="relative flex-1 rounded-2xl bg-primary px-8 py-8 flex flex-col items-center justify-center gap-6 shadow-2xl min-h-64 overflow-hidden">
-      <span className="absolute right-6 top-4 text-[7rem] font-black text-white/10 leading-none select-none">#1</span>
-      <div className="flex flex-col items-center gap-4 z-10">
-        <div className="w-16 h-16 rounded-full bg-white/20 border-2 border-white/40" />
-        <div className="flex flex-col items-center gap-2">
-          <div className="h-5 w-36 rounded bg-white/20 animate-pulse" />
-        </div>
-      </div>
-      <div className="flex gap-6 z-10">
-        {[1, 2, 3, 4].map((k) => (
-          <div key={k} className="text-center flex flex-col items-center gap-1">
-            <div className="h-3 w-14 rounded bg-white/20 animate-pulse" />
-            <div className="h-8 w-10 rounded bg-white/20 animate-pulse" />
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function SkeletonRunnerUpCard({ rank }: { rank: 2 | 3 }) {
-  const rankColor = rank === 2 ? "text-primary" : "text-orange-400"
-  return (
-    <div className="flex-1 rounded-2xl bg-card border border-border px-8 py-8 flex flex-col items-center justify-center gap-6 shadow-sm relative overflow-hidden min-h-64">
-      <span className={`absolute right-6 top-4 text-[7rem] font-black opacity-10 leading-none select-none ${rankColor}`}>#{rank}</span>
-      <div className="flex flex-col items-center gap-4 z-10">
-        <div className="w-16 h-16 rounded-full bg-muted border-2 border-border" />
-        <div className="flex flex-col items-center gap-2">
-          <div className="h-5 w-36 rounded bg-muted animate-pulse" />
-        </div>
-      </div>
-      <div className="flex gap-6 z-10">
-        {[1, 2, 3, 4].map((k) => (
-          <div key={k} className="text-center flex flex-col items-center gap-1">
-            <div className="h-3 w-14 rounded bg-muted animate-pulse" />
-            <div className="h-8 w-10 rounded bg-muted animate-pulse" />
-          </div>
-        ))}
-      </div>
+    <div className={`flex flex-col items-center gap-4 flex-1 max-w-96 ${p.order}`}>
+      <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-muted animate-pulse" />
+      <div className="h-6 w-32 rounded bg-muted animate-pulse" />
+      <div className={`w-full ${p.height} rounded-t-2xl bg-muted animate-pulse`} />
     </div>
   )
 }
 
 export function TopPlayersPodium({ playerStats, matches }: { playerStats: PlayerStats[]; matches: Match[] }) {
-  const top3 = playerStats.slice(0, 3)
-  const [first, second, third] = top3
+  const [first, second, third] = playerStats
 
   if (!first) return (
     <section>
-      <div className="flex flex-col sm:flex-row items-stretch gap-4">
-        <div className="order-2 sm:order-1 flex-1 flex flex-col"><SkeletonRunnerUpCard rank={2} /></div>
-        <div className="order-1 sm:order-2 flex-1 flex flex-col"><SkeletonChampionCard /></div>
-        <div className="order-3 sm:order-3 flex-1 flex flex-col"><SkeletonRunnerUpCard rank={3} /></div>
+      <div className="flex items-end justify-center gap-3 sm:gap-6 max-w-7xl mx-auto">
+        <SkeletonSpot rank={2} />
+        <SkeletonSpot rank={1} />
+        <SkeletonSpot rank={3} />
       </div>
     </section>
   )
 
   return (
     <section>
-      {/* On mobile: column, #1 on top. On desktop: row, #1 in center via order */}
-      <div className="flex flex-col sm:flex-row items-stretch gap-4">
-        {second && <div className="order-2 sm:order-1 flex-1 flex flex-col"><RunnerUpCard stats={second} rank={2} matches={matches} /></div>}
-        <div className="order-1 sm:order-2 flex-1 flex flex-col"><ChampionCard stats={first} matches={matches} /></div>
-        {third && <div className="order-3 sm:order-3 flex-1 flex flex-col"><RunnerUpCard stats={third} rank={3} matches={matches} /></div>}
+      <div className="flex items-end justify-center gap-3 sm:gap-6 max-w-7xl mx-auto">
+        {second && <PodiumSpot stats={second} rank={2} matches={matches} />}
+        <PodiumSpot stats={first} rank={1} matches={matches} />
+        {third && <PodiumSpot stats={third} rank={3} matches={matches} />}
       </div>
     </section>
   )

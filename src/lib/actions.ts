@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import type { EloHistoryPoint, RivalryStat } from "@/lib/types"
 import { UNDO_WINDOW_MINUTES } from "@/lib/constants"
 import { computeBadges, type BadgeStatus, type BadgeMatch, type BadgeMatchMember, type BadgeDecay } from "@/lib/badges"
+import { getCurrentSeasonStart } from "@/lib/seasons"
 
 // Matches before this date used conservative K values (players didn't know ELO existed)
 const ELO_ERA_CUTOFF = new Date("2026-06-13")
@@ -129,28 +130,66 @@ async function updateElo(
   ])
 }
 
-export async function recomputeAllElos(): Promise<void> {
+export async function recomputeAllElos(now: Date = new Date()): Promise<void> {
   await sql`UPDATE players SET elo = 1000`
 
-  const matches = await sql`
-    SELECT
-      m.id AS match_id,
-      m.score_team_a,
-      m.score_team_b,
-      m.played_at,
-      MAX(CASE WHEN mp.team = 'A' AND mp.position = 'attack'  THEN mp.player_id::text END)::text AS a_att,
-      MAX(CASE WHEN mp.team = 'A' AND mp.position = 'defense' THEN mp.player_id::text END)::text AS a_def,
-      MAX(CASE WHEN mp.team = 'B' AND mp.position = 'attack'  THEN mp.player_id::text END)::text AS b_att,
-      MAX(CASE WHEN mp.team = 'B' AND mp.position = 'defense' THEN mp.player_id::text END)::text AS b_def
-    FROM matches m
-    JOIN match_players mp ON mp.match_id = m.id
-    GROUP BY m.id, m.score_team_a, m.score_team_b, m.played_at
-  `
+  // Seasons reset ELO to 1000 at each boundary (see seasons.ts), so the
+  // "current" elo this whole function rebuilds is scoped to the current
+  // season only — matches from a prior season keep whatever elo_before/
+  // elo_after they already have (frozen historical record, never replayed
+  // again) rather than feeding into today's standings. When there's no
+  // defined current season (a gap beyond the last hardcoded one), fall back
+  // to the pre-seasons all-time behavior rather than leaving everyone stuck
+  // at 1000 for no reason.
+  //
+  // `now` defaults to the real clock for every real call site (undo/delete,
+  // the decay cron); the season-transition cron is the one caller that can
+  // pass a specific instant instead, in its own dev/test-only override path
+  // — see that route for why, and e2e/tests/zz-season-transition.spec.ts for
+  // what it unlocks.
+  const seasonStart = getCurrentSeasonStart(now)
 
-  const decays = await sql`
-    SELECT id::text, player_id::text, points, applied_at
-    FROM elo_decay_events
-  `
+  const matches = seasonStart
+    ? await sql`
+        SELECT
+          m.id AS match_id,
+          m.score_team_a,
+          m.score_team_b,
+          m.played_at,
+          MAX(CASE WHEN mp.team = 'A' AND mp.position = 'attack'  THEN mp.player_id::text END)::text AS a_att,
+          MAX(CASE WHEN mp.team = 'A' AND mp.position = 'defense' THEN mp.player_id::text END)::text AS a_def,
+          MAX(CASE WHEN mp.team = 'B' AND mp.position = 'attack'  THEN mp.player_id::text END)::text AS b_att,
+          MAX(CASE WHEN mp.team = 'B' AND mp.position = 'defense' THEN mp.player_id::text END)::text AS b_def
+        FROM matches m
+        JOIN match_players mp ON mp.match_id = m.id
+        WHERE m.played_at >= ${seasonStart.toISOString()}
+        GROUP BY m.id, m.score_team_a, m.score_team_b, m.played_at
+      `
+    : await sql`
+        SELECT
+          m.id AS match_id,
+          m.score_team_a,
+          m.score_team_b,
+          m.played_at,
+          MAX(CASE WHEN mp.team = 'A' AND mp.position = 'attack'  THEN mp.player_id::text END)::text AS a_att,
+          MAX(CASE WHEN mp.team = 'A' AND mp.position = 'defense' THEN mp.player_id::text END)::text AS a_def,
+          MAX(CASE WHEN mp.team = 'B' AND mp.position = 'attack'  THEN mp.player_id::text END)::text AS b_att,
+          MAX(CASE WHEN mp.team = 'B' AND mp.position = 'defense' THEN mp.player_id::text END)::text AS b_def
+        FROM matches m
+        JOIN match_players mp ON mp.match_id = m.id
+        GROUP BY m.id, m.score_team_a, m.score_team_b, m.played_at
+      `
+
+  const decays = seasonStart
+    ? await sql`
+        SELECT id::text, player_id::text, points, applied_at
+        FROM elo_decay_events
+        WHERE applied_at >= ${seasonStart.toISOString()}
+      `
+    : await sql`
+        SELECT id::text, player_id::text, points, applied_at
+        FROM elo_decay_events
+      `
 
   const eloMap = new Map<string, number>()
   const gamesMap = new Map<string, number>()
