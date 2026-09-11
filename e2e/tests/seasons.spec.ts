@@ -161,7 +161,20 @@ test.describe("Derniers champions card", () => {
     // "Winner" wouldn't say which champion's row it found).
     const champOlder = testPlayer("championaz", "elderwin")
     const champNewer = testPlayer("championbz", "freshwin")
-    const ids = await ensurePlayers([champOlder, champNewer], 1200)
+    const opp = [testPlayer("championopp", "one"), testPlayer("championopp", "two")]
+    const ids = await ensurePlayers([champOlder, champNewer, ...opp], 1200)
+
+    // DernierChampionCard only opens a profile dialog for a champion who has
+    // a real player_stats row (getPlayerStats() joins against matches
+    // played) — a champion with zero recorded matches renders fine in the
+    // list but the click silently does nothing, since ChampionRow only
+    // renders <PlayerProfileDialog> when fullStats is truthy. One throwaway
+    // match each gives both fixtures a real row.
+    await seedMatch({
+      teamA: { attackerId: ids.get(champOlder.email)!, defenderId: ids.get(champNewer.email)! },
+      teamB: { attackerId: ids.get(opp[0].email)!, defenderId: ids.get(opp[1].email)! },
+      scoreA: 10, scoreB: 3,
+    })
 
     // getSeasonChampions orders by created_at DESC — insert the older one
     // first so the newer insert is unambiguously "most recent".

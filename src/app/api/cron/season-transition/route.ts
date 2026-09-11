@@ -15,11 +15,16 @@ export async function GET(req: NextRequest) {
 
   // Real seasons run for months, so the "a season just ended" path can't be
   // reached at all by just waiting — the ?now= override lets tests fabricate
-  // that moment (see e2e/tests/zz-season-transition.spec.ts) without ever
-  // being reachable in the deployed app: NODE_ENV is always "production"
-  // there, so this whole branch is dead code in prod regardless of what a
-  // caller sends, bearer token or not.
-  const nowOverride = process.env.NODE_ENV !== "production" ? req.nextUrl.searchParams.get("now") : null
+  // that moment (see e2e/tests/zz-season-transition.spec.ts) without being
+  // reachable on the real deployed app. Gated on VERCEL_ENV, not NODE_ENV:
+  // the e2e suite's CI run deliberately does `next build && next start` for
+  // realism/speed (see playwright.config.ts), which — same as the real
+  // deploy — sets NODE_ENV=production, so that check would have made this
+  // override dead in the one place it's actually needed. VERCEL_ENV is
+  // Vercel's own platform variable, set to "production" only on an actual
+  // production deployment there — absent entirely in CI/local, whatever
+  // NODE_ENV says.
+  const nowOverride = process.env.VERCEL_ENV !== "production" ? req.nextUrl.searchParams.get("now") : null
   const now = nowOverride ? new Date(nowOverride) : new Date()
 
   const season = getMostRecentlyEndedSeason(now)

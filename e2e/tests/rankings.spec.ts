@@ -12,7 +12,7 @@ import { pool, testPlayer } from "../helpers/players"
 // correctly render the DB's own ranking?) without caring what's in the DB.
 
 test.describe("rankings & podium", () => {
-  test("podium's #1 card matches the DB's actual top player by ELO", async ({ page }) => {
+  test("podium's #1 spot shows the DB's actual top player by ELO", async ({ page }) => {
     // Guarantee at least one real player_stats row exists even if this spec
     // runs in isolation (e.g. via --grep).
     const [p] = pool("podz", 1)
@@ -30,10 +30,14 @@ test.describe("rankings & podium", () => {
 
     const [dbTop] = await sql`SELECT p.first_name, p.last_name, p.elo FROM player_stats ps JOIN players p ON p.id = ps.id ORDER BY p.elo DESC LIMIT 1`
 
+    // The podium (top-players-podium.tsx) was rebuilt as a real podium —
+    // three blocks of different heights, avatar + name only, no stats — so
+    // this only checks the #1 name is right, not an ELO number that no
+    // longer renders there at all ("rankings table shows correct
+    // W/L/ratio/ELO..." below covers ELO, read from the rankings table).
     await page.goto("/")
     const podium = page.locator("section").first()
     await expect(podium.getByText(`${dbTop.first_name} ${dbTop.last_name}`)).toBeVisible()
-    await expect(podium.getByText(String(dbTop.elo))).toBeVisible()
   })
 
   test("rankings table shows correct W/L/ratio/ELO for a seeded player", async ({ page }) => {

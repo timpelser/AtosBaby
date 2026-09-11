@@ -95,10 +95,14 @@ test.describe("season-transition cron", () => {
   })
 
   // Not covered here: that ?now= is actually inert in the deployed app.
-  // That's enforced by `process.env.NODE_ENV !== "production"` in the route
-  // itself, which is always true in this test run (dev/CI never sets
-  // NODE_ENV=production) — there's no way to exercise the false branch from
-  // this suite without actually running a production build against the e2e
-  // database, which isn't worth the added complexity for a one-line guard.
-  // Verify by reading the route directly if this is ever in doubt.
+  // That's enforced by `process.env.VERCEL_ENV !== "production"` in the
+  // route itself — VERCEL_ENV is set to "production" only by an actual
+  // Vercel production deployment, never in this CI run or any local run,
+  // so there's no way to exercise the false branch from this suite without
+  // deploying for real. (An earlier version of this guard checked
+  // NODE_ENV instead, which broke this exact test: CI's `next build &&
+  // next start` — see playwright.config.ts — sets NODE_ENV=production for
+  // realism/speed same as the real deploy does, so that check made the
+  // override dead in the one place it needed to work.) Verify by reading
+  // the route directly if this is ever in doubt.
 })
