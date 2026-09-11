@@ -177,31 +177,41 @@ test.describe("Derniers champions card", () => {
     })
 
     // getSeasonChampions orders by created_at DESC — insert the older one
-    // first so the newer insert is unambiguously "most recent".
+    // first so the newer insert is unambiguously "most recent". Keys carry
+    // a run-unique suffix so a Playwright retry (which re-runs this whole
+    // test body) can't collide with a previous attempt's still-there row —
+    // season_key is UNIQUE.
+    const runId = Date.now()
     await sql`
       INSERT INTO season_champions (season_key, season_label, player_id, elo)
-      VALUES ('e2e-dummy-season-older', 'Hiver 2020', ${ids.get(champOlder.email)}::uuid, 1180)
+      VALUES (${`e2e-dummy-season-older-${runId}`}, 'Hiver 2020', ${ids.get(champOlder.email)}::uuid, 1180)
     `
     await sql`
       INSERT INTO season_champions (season_key, season_label, player_id, elo)
-      VALUES ('e2e-dummy-season-newer', 'Été 2021', ${ids.get(champNewer.email)}::uuid, 1220)
+      VALUES (${`e2e-dummy-season-newer-${runId}`}, 'Été 2021', ${ids.get(champNewer.email)}::uuid, 1220)
     `
 
-    // No need to scope to a "card" container first — both fixtures' names
-    // and season labels are unique enough strings that a direct page-level
-    // locator can't collide with anything else on the page.
+    // Scoped to the card specifically (data-testid="dernier-champion-card")
+    // — now that both fixtures have a real match (seeded above), their
+    // names legitimately also appear in the rankings table and latest
+    // matches feed, so an unscoped page-wide locator would be ambiguous.
     await page.goto("/")
-    await expect(page.getByText(`${champOlder.firstName} ${champOlder.lastName}`)).toBeVisible()
-    await expect(page.getByText(`${champNewer.firstName} ${champNewer.lastName}`)).toBeVisible()
-    await expect(page.getByText("Hiver 2020")).toBeVisible()
-    await expect(page.getByText("Été 2021")).toBeVisible()
+    const card = page.getByTestId("dernier-champion-card")
+    await expect(card.getByText(`${champOlder.firstName} ${champOlder.lastName}`)).toBeVisible()
+    await expect(card.getByText(`${champNewer.firstName} ${champNewer.lastName}`)).toBeVisible()
+    await expect(card.getByText("Hiver 2020")).toBeVisible()
+    await expect(card.getByText("Été 2021")).toBeVisible()
 
-    const html = await page.content()
+    const cardHtml = await card.innerHTML()
     expect(
-      html.indexOf(champNewer.lastName),
+      cardHtml.indexOf(champNewer.lastName),
       "the more recently recorded champion (champNewer) must render before the older one"
-    ).toBeLessThan(html.indexOf(champOlder.lastName))
+    ).toBeLessThan(cardHtml.indexOf(champOlder.lastName))
 
+    // Clicking ANY "Profil de champNewer" button (there may now be more
+    // than one across the page, same reason as above) opens the same
+    // dialog for the same player, so .first() here doesn't need the same
+    // card-scoping the visibility checks above do.
     await page.getByRole("button", { name: `Profil de ${champNewer.firstName} ${champNewer.lastName}` }).first().click()
     const dialog = page.getByRole("dialog")
     await expect(dialog.getByText(`${champNewer.firstName} ${champNewer.lastName}`).first()).toBeVisible()

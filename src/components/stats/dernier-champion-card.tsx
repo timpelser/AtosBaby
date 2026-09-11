@@ -101,7 +101,7 @@ export function DernierChampionCard({
   const playerStatsMap = new Map(playerStats.map((p) => [p.player.id, p]))
 
   return (
-    <div className="h-full rounded-2xl bg-card border border-border px-6 py-6 flex flex-col gap-4 shadow-sm">
+    <div data-testid="dernier-champion-card" className="h-full rounded-2xl bg-card border border-border px-6 py-6 flex flex-col gap-4 shadow-sm">
       <div className="flex items-center gap-2">
         {TrophyIcon}
         <p className="text-lg font-bold text-foreground leading-tight">Derniers champions</p>
