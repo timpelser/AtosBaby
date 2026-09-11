@@ -189,17 +189,21 @@ function SkeletonLeaderCard({ position }: { position: "attack" | "defense" }) {
 // row — each card already carries `flex-1` itself, so the caller can drop
 // them straight into whatever flex row it's building (here, alongside
 // DernierChampionCard, so all three end up equal width instead of these
-// two splitting a share half the size of the third).
+// two splitting a share half the size of the third). `only` renders just
+// one side — page.tsx uses it to put Derniers champions between the two
+// instead of after both.
 export function PositionLeaders({
   attackerStats,
   defenderStats,
   playerStats,
   matches,
+  only,
 }: {
   attackerStats: PositionStats[]
   defenderStats: PositionStats[]
   playerStats: PlayerStats[]
   matches: Match[]
+  only?: "attack" | "defense"
 }) {
   const topAttackers = attackerStats.slice(0, 3)
   const topDefenders = defenderStats.slice(0, 3)
@@ -209,27 +213,31 @@ export function PositionLeaders({
 
   if (topAttackers.length === 0 || topDefenders.length === 0) return (
     <>
-      <SkeletonLeaderCard position="attack" />
-      <SkeletonLeaderCard position="defense" />
+      {only !== "defense" && <SkeletonLeaderCard position="attack" />}
+      {only !== "attack" && <SkeletonLeaderCard position="defense" />}
     </>
   )
 
   return (
     <>
-      <PositionLeaderCard
-        topStats={topAttackers}
-        position="attack"
-        overallRankMap={overallRankMap}
-        playerStatsMap={playerStatsMap}
-        matches={matches}
-      />
-      <PositionLeaderCard
-        topStats={topDefenders}
-        position="defense"
-        overallRankMap={overallRankMap}
-        playerStatsMap={playerStatsMap}
-        matches={matches}
-      />
+      {only !== "defense" && (
+        <PositionLeaderCard
+          topStats={topAttackers}
+          position="attack"
+          overallRankMap={overallRankMap}
+          playerStatsMap={playerStatsMap}
+          matches={matches}
+        />
+      )}
+      {only !== "attack" && (
+        <PositionLeaderCard
+          topStats={topDefenders}
+          position="defense"
+          overallRankMap={overallRankMap}
+          playerStatsMap={playerStatsMap}
+          matches={matches}
+        />
+      )}
     </>
   )
 }

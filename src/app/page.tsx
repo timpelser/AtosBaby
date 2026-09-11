@@ -76,12 +76,13 @@ export default async function Home() {
 
           <TopPlayersPodium playerStats={playerStats} matches={matches} />
 
-          {/* Derniers champions / Meilleur Attaquant / Meilleur Défenseur — three equal-width cards */}
+          {/* Meilleur Attaquant / Derniers champions / Meilleur Défenseur — three equal-width cards */}
           <div className="flex flex-col lg:flex-row items-stretch gap-4">
+            <PositionLeaders only="attack" attackerStats={attackerStats} defenderStats={defenderStats} playerStats={playerStats} matches={matches} />
             <div className="flex-1 flex flex-col">
               <DernierChampionCard champions={seasonChampions} playerStats={playerStats} matches={matches} />
             </div>
-            <PositionLeaders attackerStats={attackerStats} defenderStats={defenderStats} playerStats={playerStats} matches={matches} />
+            <PositionLeaders only="defense" attackerStats={attackerStats} defenderStats={defenderStats} playerStats={playerStats} matches={matches} />
           </div>
 
           <div className="hidden sm:block"><PlayerRankingsTable playerStats={playerStats} matches={matches} streaks={streaks} /></div>
