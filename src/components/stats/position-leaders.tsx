@@ -185,6 +185,11 @@ function SkeletonLeaderCard({ position }: { position: "attack" | "defense" }) {
   )
 }
 
+// Returns the two leader cards as a bare fragment, not wrapped in its own
+// row — each card already carries `flex-1` itself, so the caller can drop
+// them straight into whatever flex row it's building (here, alongside
+// DernierChampionCard, so all three end up equal width instead of these
+// two splitting a share half the size of the third).
 export function PositionLeaders({
   attackerStats,
   defenderStats,
@@ -203,32 +208,28 @@ export function PositionLeaders({
   const playerStatsMap = new Map(playerStats.map((p) => [p.player.id, p]))
 
   if (topAttackers.length === 0 || topDefenders.length === 0) return (
-    <section>
-      <div className="flex flex-col sm:flex-row items-stretch gap-4">
-        <SkeletonLeaderCard position="attack" />
-        <SkeletonLeaderCard position="defense" />
-      </div>
-    </section>
+    <>
+      <SkeletonLeaderCard position="attack" />
+      <SkeletonLeaderCard position="defense" />
+    </>
   )
 
   return (
-    <section>
-      <div className="flex flex-col sm:flex-row items-stretch gap-4">
-        <PositionLeaderCard
-          topStats={topAttackers}
-          position="attack"
-          overallRankMap={overallRankMap}
-          playerStatsMap={playerStatsMap}
-          matches={matches}
-        />
-        <PositionLeaderCard
-          topStats={topDefenders}
-          position="defense"
-          overallRankMap={overallRankMap}
-          playerStatsMap={playerStatsMap}
-          matches={matches}
-        />
-      </div>
-    </section>
+    <>
+      <PositionLeaderCard
+        topStats={topAttackers}
+        position="attack"
+        overallRankMap={overallRankMap}
+        playerStatsMap={playerStatsMap}
+        matches={matches}
+      />
+      <PositionLeaderCard
+        topStats={topDefenders}
+        position="defense"
+        overallRankMap={overallRankMap}
+        playerStatsMap={playerStatsMap}
+        matches={matches}
+      />
+    </>
   )
 }

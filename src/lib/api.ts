@@ -1,5 +1,5 @@
 import { sql } from "@/lib/db"
-import type { Player, Match, PlayerStats, DuoStats, PositionStats } from "@/lib/types"
+import type { Player, Match, PlayerStats, DuoStats, PositionStats, SeasonChampion } from "@/lib/types"
 
 export async function getPlayers(): Promise<Player[]> {
   const rows = await sql`
@@ -127,4 +127,21 @@ export async function getDefenderStats(): Promise<PositionStats[]> {
     losses: Number(r.losses),
     win_rate: Number(r.win_rate),
   })) as PositionStats[]
+}
+
+/** The most recent completed seasons' champions, most recent first — the "Dernier champion" leaderboard. */
+export async function getSeasonChampions(limit = 3): Promise<SeasonChampion[]> {
+  const rows = await sql`
+    SELECT sc.season_key, sc.season_label, sc.elo, p.id, p.email, p.first_name, p.last_name
+    FROM season_champions sc
+    JOIN players p ON p.id = sc.player_id
+    ORDER BY sc.created_at DESC
+    LIMIT ${limit}
+  `
+  return rows.map((r) => ({
+    seasonKey: r.season_key as string,
+    seasonLabel: r.season_label as string,
+    elo: Number(r.elo),
+    player: { id: r.id as string, email: r.email as string, first_name: r.first_name as string, last_name: r.last_name as string },
+  }))
 }

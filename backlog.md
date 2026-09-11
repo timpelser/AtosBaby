@@ -14,26 +14,54 @@ what a player experiences, not how it's built.
   winter and this year's winter are never ambiguous.
 - At any moment there is exactly one current season. Every match, ELO value,
   and streak belongs to whichever season it happened in.
+- Exact boundaries — astronomical (solstice/equinox) dates, fixed for this
+  cycle rather than recomputed year to year (the same way the app already
+  hardcodes one-off date cutoffs elsewhere, e.g. the ELO K-factor era
+  change). A future season beyond this list needs its dates added
+  explicitly when the time comes:
+  - Été 2026: dimanche 21 juin – mardi 22 septembre 2026
+  - Automne 2026: mercredi 23 septembre – dimanche 20 décembre 2026
+  - Hiver 2026: lundi 21 décembre 2026 – vendredi 19 mars 2027
+  - Printemps 2027: samedi 20 mars – dimanche 20 juin 2027
 
 **Visibility**
-- The current season is shown prominently, not tucked into a small badge —
-  a large, hard-to-miss element on the homepage carrying the season's name,
-  a matching icon (snowflake / blossom / sun / leaf), and a big countdown of
-  days remaining (e.g. a large "40 jours restants").
-- The header is reorganized: a menu on the left opens the seasons browser;
-  the AtosBaby logo/title moves to the center of the header; the existing
-  action buttons (Sélecteur d'équipes, Ajouter un match, admin lock) stay on
-  the right.
+- The current season isn't a detail — it's felt across the whole app:
+  - A colored border frames the entire screen, on every page, color-matched
+    to the season (icy blue/white for winter, soft pink/green for spring,
+    warm gold for summer, deep orange/rust for autumn).
+  - A slow, ambient particle animation drifts down across the full page
+    behind the content — snow in winter, petals in spring, floating
+    light/sun motes in summer, falling leaves in autumn. Subtle and
+    continuous, never blocks clicking anything under it, and pauses for
+    anyone with reduced-motion turned on (same as the existing win/loss
+    streak fire and ice effects already do).
+- The homepage's existing top-players podium (currently #2 / #1 / #3) becomes
+  a three-part row instead:
+  - **Left**: "Dernier champion" — not a single flat card but a small
+    vertical leaderboard, shaped like the existing Meilleur Attaquant /
+    Meilleur Défenseur cards: a ranked list of the last 3 completed
+    seasons' champions, most recent first. Each row shows the champion's
+    name and the season they won (e.g. "Été 2026"), plus their ELO at the
+    time — no win/loss record or other stats, ELO is the only number shown.
+  - **Middle**: the current season's top 3 — this is today's existing
+    podium, unchanged, just now flanked by the two cards either side.
+  - **Right**: a "jours restants" card — the season's name/icon plus the
+    day countdown as its single large number, so it's never in question how
+    long the season has left.
+- The header is reorganized: the AtosBaby logo/title moves to the center;
+  the existing action buttons (Sélecteur d'équipes, Ajouter un match, admin
+  lock) stay on the right. (No left-side menu — see below, there's nothing
+  for it to open yet.)
 
-**Browsing past seasons**
-- The left-side menu lists every past season (name + year), each showing at
-  a glance who won it.
-- Opening a past season switches the *entire* page — podium, rankings,
-  position leaders, latest matches — to that season's final, frozen state.
-  It's clearly marked as an archived/past view.
-- A single, obvious action returns to the current, live season.
-- Past seasons are read-only: no adding matches, no admin actions while
-  viewing one.
+**No season browsing (for now)**
+- Past seasons are not individually viewable or browsable — no archive, no
+  switching the page to a prior season's frozen state, no per-season pages.
+  This may come later, but isn't part of the initial build.
+- The only piece of season history surfaced anywhere is the "Dernier
+  champion" leaderboard described above, and it only ever reaches back 3
+  seasons. Match history keeps every match tagged with its season
+  regardless (see below), so a real archive view remains possible to add
+  later without a data migration.
 
 **Season transition**
 - The transition is a hard cutoff, not gradual: the instant a new season
@@ -48,9 +76,17 @@ what a player experiences, not how it's built.
   season change, only the live ELO/leaderboard resets.
 
 **Champion recognition**
-- Whoever finishes #1 when a season ends is that season's permanent
-  champion, shown when browsing that season in the archive.
-- The reigning champion (the most recent season's winner) gets a small
+- Whoever finishes #1 when a season ends is that season's champion.
+- They appear at the top of the "Dernier champion" leaderboard (see
+  Visibility above) the instant the season closes out — that row is
+  permanent and always current, not temporary.
+- On top of that, for the week immediately following, a celebratory banner
+  also runs alongside the ongoing-season banner at the top of the homepage,
+  announcing the new champion by name and ELO. (This was cut from the
+  original plan in favor of the permanent row alone, then brought back to
+  run alongside it once it was actually built and looked at — see
+  champion-banner.tsx / isChampionBannerWindow.)
+- On top of that, the reigning champion also gets a small
   crown next to their name for the entire duration of the *following*
   season, wherever their name appears in the app (leaderboard, matches,
   profile).
@@ -152,8 +188,8 @@ what a player experiences, not how it's built.
   - One or two personal highlights — e.g. biggest upset win, longest streak
     reached, most-played rival and the record against them
   - Who won the season (the champion), for context/bragging rights
-- Includes a link to the full recap for that season inside the app (the
-  same archived view reachable from the seasons menu).
+- Includes a link back to the app's homepage, where they can see the season
+  that just ended now topping the "Dernier champion" leaderboard.
 - Lets the player know a new season has started and that ELO has reset to
   1000 for everyone.
 - Matches the app's existing tone; framed as a fun recap, not a report.
